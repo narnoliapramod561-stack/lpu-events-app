@@ -39,3 +39,43 @@ Complete the remaining existing student website functions without broadening the
 - No new product capability introduced.
 
 Update the trackers, note what needs physical-phone verification, and **stop before Task 08**.
+
+## Task 07 implementation record
+
+### Website route inventory (read-only audit)
+
+- `/` — homepage, hero carousel, Happening Today, categories/Event Hub, footer.
+- `/events/:id` — event details and external registration handoff.
+- `/about` — About LPU Events.
+- `/contact` — contact channels and mail preparation form.
+- `/privacy` — privacy and Google AdSense disclosures.
+- `/terms` — terms and organizer responsibility boundary.
+- Mobile navigation also exposes Events, Event Categories, About Us, Contact Us, Privacy Policy, and Terms of Service. Search is an inline header surface; categories/subcategories are part of Event Hub rather than separate routes.
+
+Website-only behaviour intentionally omitted: browser AdSense rendering, cookie banner, QR/download/share web modal, service worker/SEO metadata, and desktop hover interactions. Native does not add authentication, profiles, booking, payments, tickets, or notifications.
+
+### Native implementation
+
+- Added Expo Router routes `app/about.tsx`, `app/contact.tsx`, `app/privacy.tsx`, and `app/terms.tsx`.
+- Added shared native `InfoPage` shell with light/dark tokens, safe-area scrolling, source-derived content, retry-free static states, and Android back navigation.
+- Added native header drawer and footer links, including the category destination (scrolls to the existing Event Hub) and safe mailto handoff.
+- Persisted theme selection through the existing AsyncStorage dependency.
+- Reused the existing public homepage/feed/detail API and cache; no new endpoint or cache was introduced.
+
+### Verification
+
+The required automated checks passed on 2026-10-31:
+
+- `npm run typecheck`
+- `npx expo install --check`
+- `npx expo-doctor` (21/21)
+- `npm run test:native-api`
+- `npx expo export --platform android`
+
+Physical Android verification remains required for visual comparison, drawer dismissal, mail client handoff, theme persistence after restart, hardware back, and restoration of Event Hub scroll/filter state.
+
+### Navigation audit correction
+
+- The native Categories destination now targets the measured Event Hub category tier from both the header drawer and footer; it does not create a second categories route.
+- The native footer now includes Categories alongside About Us, Contact Us, Privacy, and Terms.
+- Search remains on the homepage/Event Hub surface, preserving the existing 300 ms event-name-only search, active filters, prefix-before-contains ranking, and trending restoration.

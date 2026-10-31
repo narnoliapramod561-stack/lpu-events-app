@@ -58,3 +58,28 @@ Review `git diff` to prove unrelated workspace folders were not changed and the 
 - Verification checklist is updated honestly.
 
 Update documentation and **stop before Task 09**.
+
+## Task 08 execution record (2026-10-31)
+
+### Evidence-based findings
+
+| Area | Finding | Evidence | Root cause | Decision |
+|---|---|---|---|---|
+| Theme/navigation | Stack transition surfaces were always light; the status bar used `auto` | `app/_layout.tsx` used `colors.light.background` and `StatusBar style="auto"` | Root navigation was not consuming the shared theme context | Fixed with theme-bound stack `contentStyle` and explicit light/dark status-bar styles |
+| Theme persistence | A persisted dark theme could be overwritten by the initial light state before AsyncStorage hydration completed | `src/theme/ThemeContext.tsx` wrote on every initial render | Read and write effects ran independently | Fixed by delaying writes until hydration completes |
+| Header/search | Search text was always dark and had no theme-bound surface/border | `src/components/HomeHeader.tsx` used `color: '#0f172a'` | Search control bypassed shared palette values | Fixed with palette text, surface, and outline |
+| Homepage feed | Event Hub uses a vertical `FlatList` inside the homepage `ScrollView` | `src/components/EventHub.tsx` sets `scrollEnabled={false}` while `app/index.tsx` owns the outer scroll | One natural homepage scroll surface intentionally disables inner scrolling; this limits list virtualization as the feed grows | No speculative rewrite in Task 08; record as a measured-device follow-up |
+| Images/background | Campus background is one static `ImageBackground`; posters use `contain` | `app/index.tsx`, `app/events/[id].tsx`, and native card/carousel components | No per-card blur or animated background layer found | No change required |
+| API/cache | Single-flight, stale-while-revalidate, TTL and revision-aware cache paths are present | `src/api/publicApi.ts`, `src/cache/nativeCache.ts`; baseline API checks passed | Existing architecture already covers the requested behavior | Preserved |
+
+### Changes made
+
+- Made theme persistence hydration-safe.
+- Bound Expo Router stack surfaces and Android status-bar appearance to the active theme.
+- Corrected header search input foreground/background/border colors in both themes.
+- Stabilized Event Hub row rendering by passing the stable event-selection callback through a memoized `renderItem`, avoiding a new parent-created press callback for every card on unrelated screen updates.
+- Did not alter the API/cache architecture or add unmeasured memoization.
+
+### Measurement record
+
+Automated baseline and post-change checks are recorded in the root implementation status and verification checklist. No physical Android device, frame profiler, or release-build timing capture was available in this session; therefore no cold/warm, frame-rate, memory, or image-cache benchmark is claimed.

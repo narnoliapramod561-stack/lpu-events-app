@@ -76,10 +76,38 @@ Use existing public Cloudflare-backed endpoints and public-content snapshots. Pu
 - Pagination: load/render incrementally; deduplicate by stable event ID.
 - Network errors: preserve valid cached content and show a recoverable inline state rather than blanking the entire app.
 
+## Task 05 Event Hub
+
+`src/components/EventHub.tsx` owns the native Event Hub controls and feed
+state. It uses the homepage's canonical category/subcategory taxonomy and
+manually curated `homepage.trending` records, while ordinary and search pages
+use `PublicApiClient.getEventFeed()` / `searchEvents()`. Requests are
+debounced for search, deduplicated by event ID during Show More, and stale
+responses are ignored. Timeline matching uses local calendar dates and the
+website's inclusive Today/Tomorrow/This Week boundaries. Trending temporarily
+resets timeline/category/subcategory and restores those selections when the
+user leaves Trending.
+
 ## Navigation
 
 Use native stack/file-based navigation and sensible Android back behaviour. Event details should be a real native route, not an HTML route loaded inside a WebView. Preserve the user's discovery position when navigating back where practical. Deep links/sharing should not be implemented by inventing a new website route contract; inspect current event URLs and decide how public links should behave in the app.
 
+The public informational routes (`about`, `contact`, `privacy`, and `terms`)
+share `src/components/InfoPage.tsx`. `HomeHeader` owns the native drawer;
+`NativeFooter` owns footer destinations. Category links target the existing
+homepage Event Hub and scroll to its measured filter surface instead of
+creating a duplicate category screen. Header search forwards to the existing
+Event Hub state rather than creating a separate search route. Theme selection
+is persisted through the existing AsyncStorage dependency.
+
 ## Avoid premature abstractions
 
 Do not introduce Redux, a large query framework, dependency injection frameworks, a local SQL database, or multiple duplicated repository/cache layers without a specific demonstrated need. Start with a typed, testable minimal architecture and add only what the feature requires.
+## Task 03 data boundary
+
+The native API boundary is implemented in `src/api/publicApi.ts`; native UI
+must use its typed methods rather than calling `fetch`, AsyncStorage, Supabase,
+or snapshot URLs directly. `src/cache/nativeCache.ts` provides in-memory Maps,
+asynchronous AsyncStorage persistence, request single-flight promises, versioned
+records, TTL/stale windows, and manifest-revision keys. Valid snapshots are
+preferred but the existing public API remains the fallback.

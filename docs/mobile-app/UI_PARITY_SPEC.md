@@ -6,6 +6,66 @@ The current checked-out student website is the design reference. Inspect actual 
 
 The target is maximum visual parity on the same viewport and content—not merely similar features. Native rendering has unavoidable differences in font rasterization, safe areas, scroll physics, and system bars; document those differences and correct all controllable ones.
 
+## Task 02 implemented parity
+
+The native startup surface now uses the website's `#fafa-f5`-family startup backdrop, 512x512 Sunset Blend SVG artwork, and extracted light/dark design tokens. The animation uses native SVG and `Animated` values: 0.65 s scale/opacity entrance, six circle layers staggered by 30 ms, text/connector fade, the source's 0.55 s sheen sweep beginning at 220 ms, and a 0.1 s handoff. The reference requested Google-hosted Plus Jakarta Sans and Outfit; no font files are shipped in the website, so native text uses Android's system `sans-serif` fallback rather than pretending a web font is bundled.
+
+## Task 04 native homepage mapping
+
+The native homepage now uses [app/index.tsx](../../app/index.tsx) as one vertical scroll surface. It maps the inspected website components as follows:
+
+| Website reference | Native implementation |
+|---|---|
+| `src/components/Navbar.tsx` | `src/components/HomeHeader.tsx` with LPU Events logo, search entry point, theme control, and menu affordance |
+| `src/components/HeroCarousel.tsx` | `src/components/NativeHeroCarousel.tsx` with API carousel resolution, event fallback slides, `contain` posters, autoplay, pagination, arrows, and interaction pause |
+| `src/components/UnifiedAdSlot.tsx` / `SponsorBanner.tsx` | `src/components/DirectAdBanner.tsx`, limited to configured direct advertisements |
+| `src/components/HappeningTodaySlider.tsx` | `src/components/HappeningTodayNative.tsx` with horizontal `FlatList`, event metadata, configured direct-ad insertion, and View All boundary |
+
+The homepage reads `getHomepageWithSnapshot()` from the existing Task 03 client. `homepageModels.ts` resolves `ad_system_config`, `happening_today_config`, carousel item event/media records, advertisement records, and media object keys without adding another client or cache.
+
+The website's mobile hero reference is `aspect-[3/2]`; native derives the same ratio from viewport width and uses `Image.resizeMode="contain"` so posters are not unintentionally cropped. Happening Today retains the website's approximately `16:9` card image treatment. The native implementation has not yet been screenshot-compared on a physical Android device; font rasterization, safe-area/scroll physics, and AdSense provider rendering remain documented platform differences.
+
+### Task 06 event details mapping
+
+The native details route follows the inspected website order: back/share row,
+full-width 16:9 poster using `contain`, title, category/subcategory chips,
+cancellation notice when applicable, organizer, date/time/venue information
+panel, organizer-defined content tabs, and the conditional external booking
+CTA. Native uses the existing glass tokens, orange action gradient language,
+safe-area insets, and one vertical `ScrollView`; web-only QR, ads, and HTML
+injection are not added.
+
+### Task 07 informational pages and navigation
+
+The native app now maps the website's `/about`, `/contact`, `/privacy`, and
+`/terms` routes to a shared safe-area `ScrollView` shell. Cards use the existing
+light/dark surface, outline, typography, spacing, and orange action tokens.
+The header drawer mirrors the mobile destinations and the footer exposes the
+same public informational links. Categories remain an Event Hub section, so
+the header and footer category links scroll to that existing surface rather
+than creating a duplicate route.
+
+Native differences are intentional: AdSense/cookie UI, browser share/QR
+download, hover states, SEO metadata, and service-worker behavior are not
+applicable to the Android surface. External policy and contact links use
+native `Linking`/mailto handoff.
+
+### Task 08 parity audit
+
+The shared light/dark palette is now also applied to the Expo Router stack
+surface, Android status bar, and header search control. This closes the
+verified cross-screen theme mismatch without introducing a new visual style.
+Theme storage hydration is guarded so a persisted dark selection is not
+replaced by the initial light default during startup.
+
+### Correction audit notes
+
+The live payload was checked rather than inferred. The first configured carousel item is an `EVENT` for “Guest Lecture by Senior official of Akhil Bharti Organization”; its `events.media_assets` is null. The website's shared image resolver therefore selects `/defaults/events/subcategories/academics_guest-lecture.webp`. Native now bundles and selects that same genuine asset, while preserving remote media URLs when present. It no longer uses the first event feed item as a carousel fallback.
+
+The website's root also uses a fixed 1600x900 `lpu-events-campus-glass-background.webp` layer with `cover` sizing and center positioning. Native uses the same asset as a non-animated background layer behind the one vertical scroll surface, avoiding per-card blur or continuous animation. The corrected header uses a cyan-to-blue gradient, white LPU text, orange Events text, and translucent bordered controls to match the tested mobile reference.
+
+Physical-device screenshot and smoothness comparison remain pending and must be recorded in `VERIFICATION_CHECKLIST.md`; no homepage UI is included in Task 02.
+
 ## Visual properties to extract and match
 
 For every relevant component, record the exact current values where discoverable:

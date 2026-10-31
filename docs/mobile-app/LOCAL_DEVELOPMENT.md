@@ -4,7 +4,7 @@ This guide describes how to run and test the LPU Events native mobile app on a p
 
 ## Prerequisites
 
-- **Physical Device:** Android or iOS smartphone with **Expo Go** installed from Google Play Store or Apple App Store.
+- **Physical Device:** Android smartphone with **Expo Go** installed from Google Play Store or the official SDK-matched Android APK.
 - **Node.js:** Node.js v20+ or v22 LTS (current environment: `v22.23.4`).
 - **Network:** Development computer and phone should be on the same local Wi-Fi network. (If LAN connection is blocked, `--tunnel` mode can be used).
 - **No Android Studio / Xcode required:** Local native build tools (Android Studio, SDKs, Emulators, Xcode) are expressly NOT required for the Expo Go workflow.
@@ -25,7 +25,7 @@ npx expo start
    - On iOS: Open the native Camera app, point it at the QR code, and tap the Expo Go prompt.
 2. **Tunnel Mode (if Wi-Fi blocks LAN discovery):**
    ```bash
-   npx expo start --tunnel
+   npx expo start --tunnel --go --clear
    ```
 3. **Clear Metro Cache:**
    ```bash
@@ -40,7 +40,6 @@ npx expo start
 | `npm run typecheck` / `npx tsc --noEmit` | Run TypeScript type checking |
 | `npx expo-doctor` | Validate Expo dependencies and configuration health |
 | `npm run android` | Open dev server targeted for Android |
-| `npm run ios` | Open dev server targeted for iOS |
 | `npm run web` | Open web preview in browser |
 
 ## Troubleshooting

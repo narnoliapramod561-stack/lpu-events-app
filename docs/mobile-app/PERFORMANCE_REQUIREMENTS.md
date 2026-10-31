@@ -91,3 +91,13 @@ Record test device/model, OS, app/Expo SDK, network condition, whether data/imag
 - Request count and image request failures.
 
 Do not set an arbitrary pass based on one run. Compare medians across repeated cold and warm tests and record observed limitations. Use built-in dev instrumentation carefully; development mode can be materially slower than release.
+
+## Task 08 audit record
+
+Static inspection confirmed the app uses one static campus background layer, `contain` for poster artwork, horizontal virtualization for the Happening Today list, and single-flight/stale-while-revalidate API/cache paths. The homepage Event Hub list is rendered as a non-scrolling inner `FlatList` because the homepage owns the single vertical scroll surface; this preserves scroll behavior but limits virtualization when many pages are appended.
+
+No physical Android profiler or release-build timing capture was available for this audit. Cold/warm launch, frame pacing, memory, image-cache reuse, and request-count numbers are therefore intentionally left unreported rather than inferred from the desktop export.
+
+## Task 09 measurement status
+
+Automated bundling and API/cache checks passed, but no Android phone or release profiler evidence was available. Cold/warm launch time, first useful content, hero image time, 30+ card scroll responsiveness, search/filter latency, request counts, image failures, and memory stability are **NOT VERIFIED**. Complete the physical checklist in `T09_FINAL_REPORT.md` on a representative mid-range Android device before distribution.

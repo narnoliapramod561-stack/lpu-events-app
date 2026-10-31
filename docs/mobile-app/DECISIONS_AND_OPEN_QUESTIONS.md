@@ -12,6 +12,8 @@
 8. **One task per request:** the agent must stop when the requested task is complete. A roadmap is not authorization to do every task now.
 9. **Logo:** reproduce the complete original animation, while removing unnecessary blocking delay after content becomes ready.
 10. **Image treatment:** preserve complete posters and the documented display box ratios; never stretch/crop the full poster by accident.
+11. **Task 01 SDK selection:** use Expo SDK 57 (`expo` `~57.0.31`) for the Expo Go workflow while SDK 58 store support is transitional; confirm the target phone's installed Expo Go version before marking the foundation verified.
+12. **Platform scope:** Android-only. Do not create iOS builds, simulator tests, TestFlight artifacts, or iOS-specific implementation.
 
 ## Questions resolved by source inspection (Task 00 Audit)
 
@@ -39,8 +41,8 @@
   - **Verified:** In live production settings, `initial_event_limit` is omitted, and the live homepage API returns exactly 9 events. Both `App.tsx` and `client.ts` use fallback `9`. The native app should default to 9.
 - **Do filters (`today`, `tomorrow`, `this_week`, etc.) work as documented?**
   - **Verified:** Timeline filters in `App.tsx` and `client.ts` accept `today`, `tomorrow`, `this_week`, `upcoming`, and ISO date `YYYY-MM-DD`.
-- **What phone/OS will be the test target?**
-  - **To be confirmed with user in Task 01:** Developer will verify Expo Go version on their physical phone. Expo SDK 57/58 will be aligned accordingly.
+- **What phone/OS and Expo Go version will be the test target?**
+  - **Open after Task 01:** The agent cannot access the user's Android phone. The official SDK 57 matching command resolved Expo Go `57.0.9`; the user must install/use that APK or confirm the store app supports SDK 57 and confirm the placeholder opens.
 
 ## Known mismatch resolution
 
@@ -48,5 +50,4 @@ The inspected `src/App.tsx` and `src/shared/client.ts` both use a fallback `limi
 
 ## Current status
 
-Task 00 (Workspace Audit and Documentation Reconciliation) is **VERIFIED** on 2026-10-29. All living trackers (`IMPLEMENTATION_STATUS.md`, `VERIFICATION_CHECKLIST.md`) are initialized. Ready for Task 01 (`T01_EXPO_FOUNDATION.md`).
-
+Task 00 (Workspace Audit and Documentation Reconciliation) is **VERIFIED** on 2026-10-29. Task 01 is **IMPLEMENTED — NOT VERIFIED** on 2026-10-30: local foundation checks passed, but Expo Doctor was TLS-blocked and physical-device launch remains pending.

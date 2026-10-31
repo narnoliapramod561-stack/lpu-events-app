@@ -2,6 +2,8 @@
 
 ## Constraint
 
+This project is Android-only. Do not perform iOS builds, iOS simulator testing, TestFlight work, or other iOS-specific implementation.
+
 The development loop must work on a physical phone using Expo Go and the project's Metro server. Do not require Android Studio, Android Emulator, Android SDK installation, or local Gradle builds.
 
 ## Compatibility check must happen immediately before setup
@@ -18,12 +20,12 @@ On 2026-10-29, the fetched Expo Router/create-expo-app documentation described a
 
 ## Setup expectations
 
-- Use the supported `create-expo-app` template and the SDK supported by Expo Go on the actual phone.
+- Use the supported `create-expo-app` template and the SDK supported by Android Expo Go on the actual phone.
 - Use `npx expo install <package>` for Expo-native dependencies so compatible versions are selected.
 - If using Expo Router, keep route files under the app directory and test Android back navigation.
 - Run `npx expo start` from `lpu-events-app/`.
 - Connect computer and phone to the same Wi-Fi and scan the Metro QR code with Expo Go.
-- If LAN connectivity blocks the app, try `npx expo start --tunnel`; do not immediately add networking libraries or modify router/firewall configuration.
+- If LAN connectivity blocks the app, use `npx expo start --tunnel --go --clear`; do not immediately add networking libraries or modify router/firewall configuration.
 - Confirm the physical phone can reach public API endpoints and dynamic image URLs.
 - Do not run `expo run:android`, Gradle, Android Studio, or emulator-specific commands as part of the normal workflow.
 
