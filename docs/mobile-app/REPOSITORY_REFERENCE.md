@@ -41,7 +41,6 @@ The referenced `package.json` contains React 18, Vite, Tailwind CSS, `@supabase/
 - `carousel`
 - `featured`
 - `trending`
-- `advertisements`
 - `settings`
 - `events`
 
@@ -72,7 +71,7 @@ Inspect the complete method implementations and actual deployed route handlers b
 
 ## Website settings that should stay configurable
 
-`src/App.tsx` reads settings such as `initial_event_limit`, `show_more_increment`, `ad_placement_interval`, `happening_today_config`, `ad_system_config`, `platform_maintenance_mode`, and `site_notice_banner`. Current fallback values visible in the inspected file include 9 for the initial event limit, 5 for the Show More increment, and 6 for the ad interval. Treat server-provided configuration as authoritative. Compare those fallback values with the current product requirements and live website before deciding native defaults; never silently overwrite website behaviour.
+`src/App.tsx` reads settings such as `initial_event_limit`, `show_more_increment`, `happening_today_config`, `platform_maintenance_mode`, and `site_notice_banner`. Current fallback values visible in the inspected file include 9 for the initial event limit and 5 for the Show More increment. The retired direct-advertising configuration (`ad_placement_interval` and `ad_system_config`) is not part of the homepage contract. Treat current server-provided settings as authoritative and never silently overwrite website behaviour.
 
 ## Known performance investigations in the repo
 
