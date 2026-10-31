@@ -12,15 +12,15 @@
 | Navbar/search | `src/components/Navbar.tsx` | Search, suggestions, menu, theme control, logo placement |
 | Logo | `src/components/LpuLogo.tsx`, `src/components/LpuEventsLogo.tsx` | Actual branding and component artwork |
 | Launch shell | `index.html`, `src/components/SplashScreen.tsx` | Inline startup animation and its timing/handoff; inspect SVG/CSS/JS in context |
-| Hero | `src/components/HeroCarousel.tsx` | Slide models, durations, order, controls, ad injection and event selection |
-| Happening Today | `src/components/HappeningTodaySlider.tsx` | Event cards, config-driven motion, advertisement items, View All behaviour |
+| Hero | `src/components/HeroCarousel.tsx` | Event/media slide models, durations, order, controls, and event selection |
+| Happening Today | `src/components/HappeningTodaySlider.tsx` | Event cards, config-driven motion, and View All behaviour |
 | Filters | `src/components/CategoryFilter.tsx` | Category/search/date/schedule/free-paid/trending interactions |
-| Events | `src/components/EventGrid.tsx` | Card display, advertisement insertion, image handling, empty/loading state |
-| Details | `src/components/EventDetailsView.tsx` | Detail fields, content sections/tabs, external booking, share, ads, related events |
+| Events | `src/components/EventGrid.tsx` | Event card display, image handling, and empty/loading state |
+| Details | `src/components/EventDetailsView.tsx` | Detail fields, content sections/tabs, external booking, share, and related events |
 | Footer/static pages | `src/components/Footer.tsx` and relevant `*View.tsx` files | Existing page destinations and copy |
 | Category taxonomy | `src/utils/categories.ts` | Canonical category/subcategory data |
 | Image URL logic | `src/utils/images.ts`, `src/shared/images/*` | Source selection, variants/fallbacks and media URL resolution |
-| Shared types | `src/shared/types.ts` | Event, category, carousel, ad and settings contracts |
+| Shared types | `src/shared/types.ts` | Event, category, carousel, and settings contracts |
 | Public API client | `src/shared/client.ts` | Public endpoints, response contracts, filters, fallback behavior |
 | Snapshot client | `src/shared/snapshotClient.ts`, `src/shared/snapshot.ts` | Manifest/revision/public-content cache and catalogue/detail contracts |
 | Search logic | `src/shared/clientSearch.ts` | Pure event search/scoring; assess if safe to reuse in native |
@@ -31,7 +31,7 @@
 
 The referenced `package.json` contains React 18, Vite, Tailwind CSS, `@supabase/supabase-js`, Framer Motion, Lucide React, browser Sentry/PostHog, and `qrcode`. The website's `tsconfig.json` contains DOM types and web-style aliases. None of these facts implies those UI libraries can be used directly in React Native.
 
-`src/main.tsx` includes browser-specific telemetry initialization and service-worker registration. `src/shared/persistentCache.ts` uses `window.localStorage`; `src/shared/client.ts` references browser globals and web fetch assumptions. These must not be imported blindly into the native app.
+`src/main.tsx` includes browser-specific telemetry initialization and service-worker registration. `src/shared/persistentCache.ts` uses `window.localStorage`; `src/shared/client.ts` references browser globals and web fetch assumptions. These must not be imported blindly into the native app. No direct advertising feed or native ad SDK is part of the mobile implementation.
 
 ## Homepage bundle
 
@@ -45,7 +45,7 @@ The referenced `package.json` contains React 18, Vite, Tailwind CSS, `@supabase/
 - `settings`
 - `events`
 
-The current code registers media assets for bundled events and has a persistent-cache fallback in the browser client. Native code needs its own compatible storage and should preserve the backend response shape where possible.
+The current code registers media assets for bundled events and has a persistent-cache fallback in the browser client. The legacy direct-advertising feed has been retired; the clean homepage contract contains events/media carousel data and public settings only. Native code needs its own compatible storage.
 
 ## Event feeds and detail methods
 
@@ -54,7 +54,7 @@ The referenced client exposes:
 - `fetchEventFeed()` with `category_id`, `subcategory_id`, `pricing_type`, `timeline`, `date`, `limit`, `offset`, `show_past`, and `force_fresh` options.
 - `searchEvents()` with a query and options including limits, category/subcategory, and pricing filters.
 - `fetchEventDetails(idOrSlug)` for details.
-- Additional homepage module calls for categories, carousel, featured events, trending, advertisements, and settings.
+- Additional homepage module calls for categories, carousel, featured events, trending, and settings.
 
 Inspect the complete method implementations and actual deployed route handlers before relying on options or edge-case semantics.
 
