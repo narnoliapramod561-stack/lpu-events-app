@@ -18,11 +18,10 @@ The app does not own ticket booking, payments, ticket generation, reservations, 
 - Header/navigation and search with suggestions.
 - Existing light/dark theme behaviour.
 - Hero carousel with manual controls and autoplay behaviour.
-- Super Admin-managed carousel content and direct advertisements.
+- Super Admin-managed carousel content (events/media only; no ad injection).
 - Happening Today slider and its existing View All flow.
 - Event Hub and its current card presentation.
 - Category/subcategory, schedule/date, free/paid, trending, and search filters actually implemented by the current site.
-- Existing ad insertion/placement settings and ad click destinations that can legitimately be supported on native.
 - Show More/incremental loading and past-event browsing where the current website exposes it.
 - Event details, poster, date/time/venue, organizer, content sections, related events where present, sharing, and external registration disclaimer/link.
 - Existing About Us, Contact Us, Privacy Policy, Terms of Service, footer links, announcement/maintenance/loading/empty/error states.
