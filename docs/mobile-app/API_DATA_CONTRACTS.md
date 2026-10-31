@@ -36,7 +36,6 @@ These patterns come from the referenced repository source and must be checked ag
 - `carousel: CarouselItemFeedItem[]`
 - `featured: any[]` (existing contract currently uses loose nested/flat shapes; inspect actual examples and normalize explicitly)
 - `trending: EventFeedItem[]`
-- `advertisements: AdvertisementFeedItem[]`
 - `settings: { key: string; value: any }[]`
 - `events: EventFeedItem[]`
 

@@ -52,7 +52,7 @@ Update the trackers, note what needs physical-phone verification, and **stop bef
 - `/terms` — terms and organizer responsibility boundary.
 - Mobile navigation also exposes Events, Event Categories, About Us, Contact Us, Privacy Policy, and Terms of Service. Search is an inline header surface; categories/subcategories are part of Event Hub rather than separate routes.
 
-Website-only behaviour intentionally omitted: browser AdSense rendering, cookie banner, QR/download/share web modal, service worker/SEO metadata, and desktop hover interactions. Native does not add authentication, profiles, booking, payments, tickets, or notifications.
+Website-only behaviour intentionally omitted: browser AdSense rendering, cookie banner, QR/download/share web modal, service worker/SEO metadata, and desktop hover interactions. The legacy direct-advertising system has also been retired; no native ad SDK or ad renderer is included. Native does not add authentication, profiles, booking, payments, tickets, or notifications.
 
 ### Native implementation
 

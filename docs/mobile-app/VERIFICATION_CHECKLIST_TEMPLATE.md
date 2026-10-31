@@ -34,7 +34,6 @@ Legend: `[ ]` not checked · `[x]` verified · `[!]` failed/blocked · `[N/A]` g
 - [ ] Header/search
 - [ ] Hero carousel
 - [ ] Happening Today
-- [ ] Advertisement placement
 - [ ] Category/subcategory and other filters
 - [ ] Event cards
 - [ ] Event details
@@ -51,7 +50,7 @@ Legend: `[ ]` not checked · `[x]` verified · `[!]` failed/blocked · `[N/A]` g
 - [ ] Show More increment and deduplication
 - [ ] Past events where supported
 - [ ] Carousel autoplay/manual navigation interaction
-- [ ] Advertisements and safe external destinations
+- [ ] External destinations are validated and safely opened; no native ad SDK is installed
 - [ ] Event details fetch and content sections
 - [ ] Back navigation/position restoration
 - [ ] External booking flow only

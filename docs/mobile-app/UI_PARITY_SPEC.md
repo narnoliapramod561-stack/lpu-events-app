@@ -18,12 +18,11 @@ The native homepage now uses [app/index.tsx](../../app/index.tsx) as one vertica
 |---|---|
 | `src/components/Navbar.tsx` | `src/components/HomeHeader.tsx` with LPU Events logo, search entry point, theme control, and menu affordance |
 | `src/components/HeroCarousel.tsx` | `src/components/NativeHeroCarousel.tsx` with API carousel resolution, event fallback slides, `contain` posters, autoplay, pagination, arrows, and interaction pause |
-| `src/components/UnifiedAdSlot.tsx` / `SponsorBanner.tsx` | `src/components/DirectAdBanner.tsx`, limited to configured direct advertisements |
 | `src/components/HappeningTodaySlider.tsx` | `src/components/HappeningTodayNative.tsx` with horizontal `FlatList`, event metadata, configured direct-ad insertion, and View All boundary |
 
-The homepage reads `getHomepageWithSnapshot()` from the existing Task 03 client. `homepageModels.ts` resolves `ad_system_config`, `happening_today_config`, carousel item event/media records, advertisement records, and media object keys without adding another client or cache.
+The homepage reads `getHomepageWithSnapshot()` from the existing Task 03 client. `homepageModels.ts` resolves the event/media carousel records, `happening_today_config`, and media object keys without adding another client or cache. The retired advertisement feed and injection settings are not part of the contract.
 
-The website's mobile hero reference is `aspect-[3/2]`; native derives the same ratio from viewport width and uses `Image.resizeMode="contain"` so posters are not unintentionally cropped. Happening Today retains the website's approximately `16:9` card image treatment. The native implementation has not yet been screenshot-compared on a physical Android device; font rasterization, safe-area/scroll physics, and AdSense provider rendering remain documented platform differences.
+The website's mobile hero reference is `aspect-[3/2]`; native derives the same ratio from viewport width and uses `Image.resizeMode="contain"` so posters are not unintentionally cropped. Happening Today retains the website's approximately `16:9` card image treatment. The native implementation has not yet been screenshot-compared on a physical Android device; font rasterization and safe-area/scroll physics remain documented platform differences. Browser AdSense rendering is web-only and has no native app counterpart.
 
 ### Task 06 event details mapping
 
@@ -32,8 +31,8 @@ full-width 16:9 poster using `contain`, title, category/subcategory chips,
 cancellation notice when applicable, organizer, date/time/venue information
 panel, organizer-defined content tabs, and the conditional external booking
 CTA. Native uses the existing glass tokens, orange action gradient language,
-safe-area insets, and one vertical `ScrollView`; web-only QR, ads, and HTML
-injection are not added.
+safe-area insets, and one vertical `ScrollView`; web-only QR and HTML
+injection are not added. The retired direct-advertising system is not rendered.
 
 ### Task 07 informational pages and navigation
 
@@ -45,9 +44,9 @@ same public informational links. Categories remain an Event Hub section, so
 the header and footer category links scroll to that existing surface rather
 than creating a duplicate route.
 
-Native differences are intentional: AdSense/cookie UI, browser share/QR
+Native differences are intentional: browser AdSense/cookie UI, browser share/QR
 download, hover states, SEO metadata, and service-worker behavior are not
-applicable to the Android surface. External policy and contact links use
+applicable to the Android surface. No AdMob SDK or direct-ad renderer is included. External policy and contact links use
 native `Linking`/mailto handoff.
 
 ### Task 08 parity audit

@@ -17,7 +17,6 @@ Compare equivalent content and viewport/theme for:
 - Logo animation and first useful frame.
 - Header/search/theme controls.
 - Hero carousel slide composition/control position/timing.
-- Advertisements and their actual placements.
 - Happening Today cards.
 - Filter controls and Event Hub cards.
 - All event poster/detail image boxes.

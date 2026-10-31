@@ -11,7 +11,7 @@ Expo SDK / Expo Go compatibility: Expo SDK 57 (`expo` `~57.0.31`); official Andr
 - Expo Go starter (T01): IMPLEMENTED — NOT VERIFIED
 - Design tokens/logo (T02): IMPLEMENTED — visually verified by the user on a physical Android phone
 - Public API/cache (T03): IMPLEMENTED — native API, snapshot fallback, and two-tier cache
-- Home/carousel (T04): IMPLEMENTED — native header, hero, direct ads, and Happening Today
+- Home/carousel (T04): IMPLEMENTED — native header, event/media hero, and Happening Today
 - Search/filters/Event Hub (T05): IMPLEMENTED — automated verification complete; corrected mobile layout pending physical screenshot confirmation
 - Event details/registration (T06): IMPLEMENTED — automated verification passed; physical comparison pending
 - Remaining pages/states (T07): IMPLEMENTED — About, Contact, Privacy, Terms, drawer/footer navigation, and persisted theme
@@ -42,7 +42,7 @@ Standalone production build readiness is **NOT VERIFIED**: `app.json` does not d
 | Footer: About, Categories, Contact, Privacy, Terms, mail contact | Implemented |
 | Search, category/subcategory, pricing, schedule, trending | Reused existing Event Hub; no duplicate screen |
 
-Website-only behaviour intentionally omitted from native: browser AdSense/cookie UI, SEO/service-worker behaviour, hover states, browser QR/download/share modal, and desktop-only layout details. Native also does not add authentication, profiles, payments, tickets, or notifications.
+Website-only behaviour intentionally omitted from native: browser AdSense/cookie UI, SEO/service-worker behaviour, hover states, browser QR/download/share modal, and desktop-only layout details. The retired direct-advertising feed is not implemented in native and no AdMob SDK is installed. Native also does not add authentication, profiles, payments, tickets, or notifications.
 
 ## Current task report (Task 08)
 
@@ -79,11 +79,11 @@ No architecture change was made, so `APP_ARCHITECTURE.md` was not changed for Ta
 ### Native homepage implementation
 
 - Added [app/index.tsx](../../app/index.tsx) as one vertical `ScrollView` using the existing `PublicApiClient` snapshot/API fallback and cache.
-- Added [HomeHeader.tsx](../../src/components/HomeHeader.tsx), [NativeHeroCarousel.tsx](../../src/components/NativeHeroCarousel.tsx), [DirectAdBanner.tsx](../../src/components/DirectAdBanner.tsx), and [HappeningTodayNative.tsx](../../src/components/HappeningTodayNative.tsx).
-- Added [homepageModels.ts](../../src/features/homepageModels.ts) to normalize the production carousel, advertisement, settings, and media shapes without a second API/cache layer.
-- Hero content resolves configured carousel items, event fallback slides, direct-ad injection, poster `contain` treatment, manual controls, pagination, autoplay, and interaction pause.
-- Happening Today uses the homepage event payload, local-day selection, horizontal virtualized cards, configured direct-ad injection, and the website's View All entry point boundary. Full Event Hub/filter navigation remains Task 05.
-- AdSense/web-only providers are intentionally not rendered on native; only administrator-managed direct advertisements are supported. This limitation is documented rather than silently treating AdSense as a direct ad.
+- Added [HomeHeader.tsx](../../src/components/HomeHeader.tsx), [NativeHeroCarousel.tsx](../../src/components/NativeHeroCarousel.tsx), and [HappeningTodayNative.tsx](../../src/components/HappeningTodayNative.tsx).
+- Added [homepageModels.ts](../../src/features/homepageModels.ts) to normalize event/media carousel, settings, and media shapes without a second API/cache layer.
+- Hero content resolves configured event/media carousel items, event fallback slides, poster `contain` treatment, manual controls, pagination, autoplay, and interaction pause.
+- Happening Today uses the homepage event payload, local-day selection, horizontal virtualized cards, and the website's View All entry point boundary. Full Event Hub/filter navigation remains Task 05.
+- Browser AdSense providers are not rendered in native. The legacy direct-advertising feed/injection system is retired, and the app has no native ad renderer or ad SDK.
 - Event detail navigation is intentionally left for Task 06; native cards expose real IDs and do not fabricate detail content.
 
 ### Task 04 correction
@@ -215,7 +215,7 @@ No architecture change was made, so `APP_ARCHITECTURE.md` was not changed for Ta
 
 - Android system `sans-serif` remains the documented fallback because the website does not ship a licensed font file.
 - Native image decoding, safe-area insets, scroll physics, and text rasterization may differ from the browser.
-- The website's AdSense provider has no native rendering path in this task; direct configured advertisements are supported.
+- Browser AdSense has no native rendering path. No direct-ad renderer or native ad SDK is included.
 
 ## Current task report (Task 03)
 

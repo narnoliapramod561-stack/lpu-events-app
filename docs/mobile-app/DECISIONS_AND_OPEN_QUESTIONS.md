@@ -32,11 +32,11 @@
 - **Which font files are available/licensed for native bundling?**
   - **Verified:** Website loads Google Fonts (`Plus Jakarta Sans`, `Geist`, `Inter`, `Outfit`) via web fonts. In native Expo, `@expo-google-fonts/plus-jakarta-sans` and `@expo-google-fonts/outfit` can be loaded dynamically.
 - **What are current live homepage/event/detail payload shapes and statuses?**
-  - **Verified Live:** `GET https://lpuevents.live/api/public/version` -> 200 OK (`version: 0, status: READY`). `GET https://lpuevents.live/api/public/homepage` -> 200 OK with `categories` (13), `carousel` (4), `featured` (0), `trending` (0), `advertisements` (0), `settings` (6), and `events` (9).
+  - **Verified Live:** `GET https://lpuevents.live/api/public/version` -> 200 OK (`version: 0, status: READY`). `GET https://lpuevents.live/api/public/homepage` -> 200 OK with the legacy `advertisements` field still present in the then-current response. This field is retired by the 2026-11-01 cleanup; do not model it in the native client.
 - **Is the snapshot manifest publicly available?**
   - **Verified Live:** `GET https://images.lpuevents.live/public-content/manifest.json` -> 200 OK. Schema version is `1.0.0`, revision `rev_20261021T081230Z_34c0cd`, resources pointing to `homepage`, `catalogue`, `categories`, and `event_details_dir`.
-- **Which ad placements are database-managed vs AdSense?**
-  - **Verified:** Live settings show `ad_system_config.global_enabled: false`. Placements for `hero_carousel`, `event_hub`, and `happening_today` specify provider `"direct"`. No AdMob should be installed; only direct native advertisements from the feed should be supported.
+- **Is there a native advertising integration?**
+  - **Decision:** No. The legacy direct-advertising feed/configuration is being retired. AdSense remains web-only. Do not add AdMob, another native ad SDK, ad tracking, or direct ad placements without a separate product/privacy decision.
 - **Does current website use initial count 9 or 10?**
   - **Verified:** In live production settings, `initial_event_limit` is omitted, and the live homepage API returns exactly 9 events. Both `App.tsx` and `client.ts` use fallback `9`. The native app should default to 9.
 - **Do filters (`today`, `tomorrow`, `this_week`, etc.) work as documented?**

@@ -43,7 +43,7 @@ Use Expo Go on the target phone. Record phone model/Android version and Expo Go 
 - Show More uses the server-configured increment, prevents duplicates and handles end-of-feed state.
 - Past events work where exposed.
 - Hero and Happening Today sliders allow manual interaction and obey autoplay rules.
-- Direct advertisement click targets resolve correctly.
+- No direct-ad renderer or native ad SDK is loaded.
 - Event details load real data, preserve content section behaviour and link to related events where applicable.
 - Back navigation restores discovery context/position where practical.
 - External booking opens the organizer URL, not an internal checkout.

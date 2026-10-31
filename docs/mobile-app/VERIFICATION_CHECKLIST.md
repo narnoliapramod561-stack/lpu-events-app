@@ -34,7 +34,7 @@ Legend: `[ ]` not checked · `[x]` verified · `[!]` failed/blocked · `[N/A]` g
 - [x] Header/search entry point (Task 04 correction: cyan/blue gradient, logo, search, theme, menu)
 - [x] Hero carousel mapping (Task 04 correction: production carousel + deterministic Guest Lecture artwork)
 - [x] Happening Today (Task 04 correction: real homepage events, horizontal cards, metadata)
-- [x] Direct advertisement placement configuration (AdSense is documented as web-only)
+- [x] No native advertising feed, renderer, or AdMob SDK; browser AdSense remains web-only
 - [x] Category/subcategory and other filters (Task 05 implementation; physical interaction pending)
 - [x] Event cards (Task 05 implementation; physical interaction pending)
 - [x] Event details route, poster, metadata, description, sections, and conditional external CTA (Task 06 implementation; physical comparison pending)
@@ -51,7 +51,7 @@ Legend: `[ ]` not checked · `[x]` verified · `[!]` failed/blocked · `[N/A]` g
 - [x] Show More pagination and stable-ID deduplication (Task 05 implementation)
 - [ ] Past events where supported (Task 05)
 - [ ] Carousel autoplay/manual navigation interaction (requires physical Android run)
-- [x] Direct advertisements and safe HTTPS external destinations (static implementation/typechecked)
+- [x] External destinations are validated and opened safely; no native ad click targets exist
 - [x] Event details fetch and content sections (Task 06 implementation)
 - [x] Back navigation/position restoration through Expo Router stack (automated/source verified; physical hardware-back pending)
 - [x] External booking flow only, URL validated and opened with `Linking` (source verified; physical browser handoff pending)
