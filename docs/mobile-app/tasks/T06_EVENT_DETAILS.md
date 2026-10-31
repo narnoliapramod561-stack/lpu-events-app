@@ -55,7 +55,6 @@ Implement native event-detail route/screen matching the current mobile website a
 - Correct event identity and actual full poster.
 - Name, date/time, venue, category/organizer and applicable pricing/register metadata.
 - About the Event and organizer-defined content sections/tabs that are part of current source.
-- Existing detail advertisements that can be represented correctly on native.
 - Related-event navigation if current site includes it.
 - Share behaviour using supported native APIs, not a fake button.
 - Existing external-registration disclaimer and external URL opening.
