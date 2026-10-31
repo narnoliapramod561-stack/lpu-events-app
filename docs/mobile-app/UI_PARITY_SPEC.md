@@ -20,7 +20,7 @@ The native homepage now uses [app/index.tsx](../../app/index.tsx) as one vertica
 | `src/components/HeroCarousel.tsx` | `src/components/NativeHeroCarousel.tsx` with API carousel resolution, event fallback slides, `contain` posters, autoplay, pagination, arrows, and interaction pause |
 | `src/components/HappeningTodaySlider.tsx` | `src/components/HappeningTodayNative.tsx` with horizontal `FlatList`, event metadata, configured direct-ad insertion, and View All boundary |
 
-The homepage reads `getHomepageWithSnapshot()` from the existing Task 03 client. `homepageModels.ts` resolves the event/media carousel records, `happening_today_config`, and media object keys without adding another client or cache. The retired advertisement feed and injection settings are not part of the contract.
+The homepage reads `getHomepageWithSnapshot()` from the existing Task 03 client. `homepageModels.ts` resolves the event/media carousel records, `happening_today_config`, and media object keys without adding another client or cache. The retired direct-advertising payload and insertion settings are not part of the contract.
 
 The website's mobile hero reference is `aspect-[3/2]`; native derives the same ratio from viewport width and uses `Image.resizeMode="contain"` so posters are not unintentionally cropped. Happening Today retains the website's approximately `16:9` card image treatment. The native implementation has not yet been screenshot-compared on a physical Android device; font rasterization and safe-area/scroll physics remain documented platform differences. Browser AdSense rendering is web-only and has no native app counterpart.
 
