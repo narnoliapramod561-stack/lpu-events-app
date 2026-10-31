@@ -32,7 +32,7 @@
 - **Which font files are available/licensed for native bundling?**
   - **Verified:** Website loads Google Fonts (`Plus Jakarta Sans`, `Geist`, `Inter`, `Outfit`) via web fonts. In native Expo, `@expo-google-fonts/plus-jakarta-sans` and `@expo-google-fonts/outfit` can be loaded dynamically.
 - **What are current live homepage/event/detail payload shapes and statuses?**
-  - **Verified Live:** `GET https://lpuevents.live/api/public/version` -> 200 OK (`version: 0, status: READY`). `GET https://lpuevents.live/api/public/homepage` -> 200 OK with the legacy `advertisements` field still present in the then-current response. This field is retired by the 2026-11-01 cleanup; do not model it in the native client.
+  - **Verified Live:** `GET https://lpuevents.live/api/public/version` -> 200 OK (`version: 0, status: READY`). `GET https://lpuevents.live/api/public/homepage` -> 200 OK with a deprecated monetization field in the response at the time of the original audit. That field was removed by the 2026-11-01 cleanup; it is not part of the current native client contract.
 - **Is the snapshot manifest publicly available?**
   - **Verified Live:** `GET https://images.lpuevents.live/public-content/manifest.json` -> 200 OK. Schema version is `1.0.0`, revision `rev_20261021T081230Z_34c0cd`, resources pointing to `homepage`, `catalogue`, `categories`, and `event_details_dir`.
 - **Is there a native advertising integration?**
