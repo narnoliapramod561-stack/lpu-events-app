@@ -13,7 +13,7 @@ No new product feature was introduced. A shared external-link helper was added t
 ## Implemented functionality
 
 - Expo Router Android application with homepage, Event Hub, event details, About, Contact, Privacy, and Terms routes.
-- Homepage header/drawer, hero carousel, Happening Today, schedule/filter surface, direct advertisements, footer, loading, empty, stale-cache, retry, and error states.
+- Homepage header/drawer, hero carousel, Happening Today, schedule/filter surface, footer, loading, empty, stale-cache, retry, and error states.
 - Event Hub search with 300 ms debounce, schedule/event-type/category/subcategory filters, trending restoration, stable-ID pagination deduplication, and empty/error states.
 - Event details with live data, poster fallback, metadata, content sections, theme-aware rendering, back/share actions, and validated external registration handoff.
 - Async public API client with response validation, timeout/retry, snapshot fallback, single-flight requests, and versioned AsyncStorage plus memory cache.
