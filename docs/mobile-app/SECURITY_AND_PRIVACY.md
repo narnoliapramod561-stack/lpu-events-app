@@ -27,9 +27,9 @@ For ad redirects, contact links and organizer registration:
 
 The website includes browser-oriented Sentry, PostHog and Clarity integrations. Do not import these browser SDKs into the native app. Do not create new analytics projects, credentials, data collection events, or consent behaviours without inspecting current policy/configuration and recording the need. If mobile telemetry is not needed for a task, leave it out; it is not a pretext to expand the product.
 
-## Advertisements
+## Advertising
 
-Preserve the existing admin-managed direct advertisement content and placement rules wherever the native app can support them. Web AdSense placements may not be portable as-is. Do not silently replace them with AdMob, new tracking, affiliate ads, or fabricated content. Document the exact incompatibility and leave a decision for the owner if a true native ad integration would be a new product/monetization decision.
+The retired direct-advertising system is not part of the native app contract. The app has no direct-ad renderer, no ad-feed dependency, and no AdMob SDK. Do not reintroduce native advertising or ad tracking without a separate product and privacy decision. Google AdSense remains a browser/web concern; its scripts, cookies, and provider UI must not be imported into React Native.
 
 ## Permissions and data minimization
 
