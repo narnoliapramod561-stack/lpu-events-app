@@ -62,16 +62,14 @@ export interface HomepageBundle {
   carousel: unknown[];
   featured: unknown[];
   trending: EventFeedItem[];
-  advertisements: unknown[];
   settings: Array<{ key: string; value: unknown }>;
   events: EventFeedItem[];
 }
 
 export interface NativeCarouselItem {
   id: string;
-  item_type: 'EVENT' | 'ADVERTISEMENT' | 'MEDIA';
+  item_type: 'EVENT' | 'MEDIA';
   event_id?: string | null;
-  advertisement_id?: string | null;
   media_id?: string | null;
   is_active: boolean;
   display_duration_ms?: number;
@@ -81,7 +79,6 @@ export interface NativeCarouselItem {
   custom_cta_url?: string | null;
   badge_text?: string | null;
   events?: EventFeedItem | null;
-  advertisements?: NativeAdvertisement | null;
   media_assets?: NativeMediaAsset | null;
 }
 
@@ -89,31 +86,6 @@ export interface NativeMediaAsset {
   id?: string;
   object_key: string;
   bucket?: string;
-}
-
-export interface NativeAdvertisement {
-  id: string;
-  name: string;
-  media_id?: string | null;
-  redirect_url?: string | null;
-  media_assets?: NativeMediaAsset | null;
-}
-
-export interface NativeAdPlacement {
-  enabled: boolean;
-  provider: 'disabled' | 'adsense' | 'direct';
-  frequency?: number;
-  max_ads?: number;
-  selected_ad_ids?: string[];
-}
-
-export interface NativeAdSystemConfig {
-  global_enabled: boolean;
-  max_ads_per_page?: number;
-  placements: {
-    hero_carousel?: NativeAdPlacement;
-    happening_today?: NativeAdPlacement;
-  };
 }
 
 export interface NativeHappeningTodayConfig {

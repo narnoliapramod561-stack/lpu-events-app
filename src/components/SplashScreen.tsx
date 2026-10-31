@@ -7,108 +7,146 @@ import {
   View,
 } from 'react-native';
 import { LpuEventsLogo } from './LpuEventsLogo';
-import { colors, shadows } from '../design/tokens';
 
 interface SplashScreenProps {
   onFinished: () => void;
 }
 
-const ASSEMBLY_DURATION = 460;
-const SHEEN_DELAY = 220;
-const SHEEN_DURATION = 550;
+const ASSEMBLY_DURATION = 560;
+const PREMIUM_EASE = Easing.bezier(0.16, 1, 0.3, 1);
 
 export function SplashScreen({ onFinished }: SplashScreenProps) {
   const { width, height } = useWindowDimensions();
-  const logoSize = Math.min(320, Math.max(220, Math.min(width * 0.78, height * 0.44)));
+  const logoSize = Math.min(280, Math.max(190, Math.min(width * 0.68, height * 0.38)));
   const entrance = useRef(new Animated.Value(0)).current;
   const layerProgress = useRef(
     Array.from({ length: 6 }, () => new Animated.Value(0)),
   ).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const sheen = useRef(new Animated.Value(0)).current;
-  const handoff = useRef(new Animated.Value(1)).current;
+  const lpuOpacity = useRef(new Animated.Value(0)).current;
+  const connectorOpacity = useRef(new Animated.Value(0)).current;
+  const eventsOpacity = useRef(new Animated.Value(0)).current;
+  const handoffFade = useRef(new Animated.Value(1)).current;
+  const handoffX = useRef(new Animated.Value(0)).current;
+  const handoffY = useRef(new Animated.Value(0)).current;
+  const handoffScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const layers = layerProgress.map((value, index) =>
+    let active = true;
+    const reveal = (value: Animated.Value, duration: number) =>
       Animated.timing(value, {
         toValue: 1,
-        duration: index === 5 ? 500 : ASSEMBLY_DURATION,
-        delay: index * 30,
-        easing: Easing.bezier(0.22, 1, 0.36, 1),
+        duration,
+        easing: PREMIUM_EASE,
         useNativeDriver: true,
-      }),
+      });
+    const circleAssembly = Animated.parallel(
+      layerProgress.map((value, index) =>
+        Animated.sequence([
+          Animated.delay(index * 22),
+          reveal(value, index === 5 ? 600 : ASSEMBLY_DURATION),
+        ]),
+      ),
     );
 
-    Animated.parallel([
-      Animated.timing(entrance, {
-        toValue: 1,
-        duration: 650,
-        easing: Easing.bezier(0.22, 1, 0.36, 1),
-        useNativeDriver: true,
-      }),
-      ...layers,
-      Animated.timing(textOpacity, {
-        toValue: 1,
-        duration: 380,
-        delay: 160,
-        easing: Easing.bezier(0.22, 1, 0.36, 1),
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheen, {
-        toValue: 1,
-        duration: SHEEN_DURATION,
-        delay: SHEEN_DELAY,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      Animated.timing(handoff, {
-        toValue: 0,
-        duration: 100,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start(onFinished);
+    const startup = Animated.sequence([
+      Animated.parallel([
+        Animated.timing(entrance, {
+          toValue: 1,
+          duration: 700,
+          easing: PREMIUM_EASE,
+          useNativeDriver: true,
+        }),
+        circleAssembly,
+      ]),
+      Animated.parallel([
+        reveal(lpuOpacity, 360),
+      ]),
+      Animated.sequence([
+        Animated.delay(70),
+        reveal(connectorOpacity, 300),
+      ]),
+      Animated.sequence([
+        Animated.delay(60),
+        reveal(eventsOpacity, 380),
+      ]),
+    ]);
+    startup.start(() => {
+      if (!active) return;
+      const targetX = -(width / 2 - 16 - 21);
+      const targetY = -(height / 2 - 8 - 21);
+      Animated.parallel([
+        Animated.timing(handoffX, {
+          toValue: targetX,
+          duration: 620,
+          easing: PREMIUM_EASE,
+          useNativeDriver: true,
+        }),
+        Animated.timing(handoffY, {
+          toValue: targetY,
+          duration: 620,
+          easing: PREMIUM_EASE,
+          useNativeDriver: true,
+        }),
+        Animated.timing(handoffScale, {
+          toValue: 42 / logoSize,
+          duration: 620,
+          easing: PREMIUM_EASE,
+          useNativeDriver: true,
+        }),
+        Animated.timing(handoffFade, {
+          toValue: 0,
+          duration: 280,
+          delay: 340,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        if (active) onFinished();
+      });
     });
-  }, [entrance, handoff, layerProgress, onFinished, sheen, textOpacity]);
+
+    return () => {
+      active = false;
+      startup.stop();
+    };
+  }, [connectorOpacity, entrance, eventsOpacity, handoffFade, handoffScale, handoffX, handoffY, height, layerProgress, logoSize, lpuOpacity, onFinished, width]);
 
   const logoScale = entrance.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.92, 1],
+    outputRange: [0.96, 1],
   });
   const logoOpacity = entrance;
-  const sheenTranslate = sheen.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-logoSize * 1.4, logoSize * 2.2],
-  });
   const layerOpacities = layerProgress.map((progress, index) =>
     progress.interpolate({
       inputRange: [0, 1],
-      outputRange: [0.3, index === 5 ? 0.96 : 1],
+      outputRange: [0, index === 5 ? 0.96 : 1],
     }),
   );
 
   return (
-    <Animated.View style={[styles.shell, { opacity: handoff }]}>
-      <View style={styles.backdrop} />
+    <Animated.View style={styles.shell}>
+      <Animated.View style={[styles.backdrop, { opacity: handoffFade }]} />
       <Animated.View
         style={[
           styles.logoContainer,
           { width: logoSize, height: logoSize, marginLeft: -logoSize / 2, marginTop: -logoSize / 2 },
-          shadows.orange,
-          { opacity: logoOpacity, transform: [{ scale: logoScale }] },
+          {
+            opacity: logoOpacity,
+            transform: [
+              { translateX: handoffX },
+              { translateY: handoffY },
+              { scale: logoScale },
+              { scale: handoffScale },
+            ],
+          },
         ]}
       >
         <LpuEventsLogo
           size={logoSize}
           animatedOpacities={layerOpacities}
-          textOpacity={textOpacity}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.sheen,
-            { width: logoSize * 0.4, height: logoSize, transform: [{ translateX: sheenTranslate }, { skewX: '-14deg' }] },
-          ]}
+          lpuOpacity={lpuOpacity}
+          connectorOpacity={connectorOpacity}
+          eventsOpacity={eventsOpacity}
         />
       </Animated.View>
     </Animated.View>
@@ -130,14 +168,6 @@ const styles = StyleSheet.create({
     left: '50%',
     overflow: 'hidden',
     borderRadius: 999,
-  },
-  sheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
-    opacity: 0.45,
   },
 });
 

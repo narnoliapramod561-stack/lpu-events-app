@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated } from 'react-native';
+import { Animated, Platform } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -16,17 +16,26 @@ const AnimatedG = Animated.createAnimatedComponent(G);
 type AnimatedOpacity = number | Animated.AnimatedInterpolation<number>;
 
 const svgOpacity = (value: AnimatedOpacity) => value as unknown as number;
+const logoFontFamily = Platform.select({
+  ios: 'Avenir Next',
+  android: 'sans-serif',
+  default: 'sans-serif',
+});
 
 export interface LpuEventsLogoProps {
   size?: number;
   animatedOpacities?: readonly (number | Animated.AnimatedInterpolation<number>)[];
-  textOpacity?: number | Animated.AnimatedInterpolation<number>;
+  lpuOpacity?: number | Animated.AnimatedInterpolation<number>;
+  connectorOpacity?: number | Animated.AnimatedInterpolation<number>;
+  eventsOpacity?: number | Animated.AnimatedInterpolation<number>;
 }
 
 export function LpuEventsLogo({
   size = 280,
   animatedOpacities,
-  textOpacity = 1,
+  lpuOpacity = 1,
+  connectorOpacity = 1,
+  eventsOpacity = 1,
 }: LpuEventsLogoProps) {
   const opacity = (index: number, fallback: number) =>
     animatedOpacities?.[index] ?? fallback;
@@ -60,10 +69,10 @@ export function LpuEventsLogo({
           <Stop offset="100%" stopColor="#c2410c" stopOpacity="0.65" />
         </RadialGradient>
         <RadialGradient id="darkGlass" cx="45%" cy="40%" r="62%">
-          <Stop offset="0%" stopColor="#45271d" stopOpacity="0.97" />
-          <Stop offset="50%" stopColor="#2c1a14" stopOpacity="0.95" />
-          <Stop offset="85%" stopColor="#191924" stopOpacity="0.94" />
-          <Stop offset="100%" stopColor="#10131d" stopOpacity="0.92" />
+          <Stop offset="0%" stopColor="#45271d" stopOpacity="0.9" />
+          <Stop offset="50%" stopColor="#2c1a14" stopOpacity="0.86" />
+          <Stop offset="85%" stopColor="#191924" stopOpacity="0.8" />
+          <Stop offset="100%" stopColor="#10131d" stopOpacity="0.72" />
         </RadialGradient>
         <LinearGradient id="rimSheen" x1="0%" y1="0%" x2="100%" y2="100%">
           <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
@@ -92,32 +101,36 @@ export function LpuEventsLogo({
         <Circle cx="256" cy="256" r="168" fill="url(#darkGlass)" stroke="url(#rimSheen)" strokeWidth="1.5" />
       </AnimatedG>
 
-      <AnimatedG opacity={svgOpacity(textOpacity)}>
+      <AnimatedG opacity={svgOpacity(lpuOpacity)}>
         <SvgText
           x="256"
           y="228"
           textAnchor="middle"
-          fontFamily="sans-serif"
+          fontFamily={logoFontFamily}
           fontWeight="900"
-          fontSize="106"
+          fontSize="104"
           fill="#ffffff"
-          letterSpacing="5"
+          letterSpacing="2"
         >
           LPU
         </SvgText>
+      </AnimatedG>
+      <AnimatedG opacity={svgOpacity(connectorOpacity)}>
         <Rect x="162" y="257" width="188" height="22" rx="11" fill="#ffffff" fillOpacity="0.14" stroke="#ffffff" strokeOpacity="0.18" />
         <Circle cx="178" cy="268" r="5.5" fill="#ffffff" />
         <Line x1="184" y1="268" x2="328" y2="268" stroke="#ffffff" strokeWidth="3.2" strokeLinecap="round" />
         <Circle cx="334" cy="268" r="5.5" fill="#ffffff" />
+      </AnimatedG>
+      <AnimatedG opacity={svgOpacity(eventsOpacity)}>
         <SvgText
           x="256"
           y="323"
           textAnchor="middle"
-          fontFamily="sans-serif"
+          fontFamily={logoFontFamily}
           fontWeight="800"
-          fontSize="35"
+          fontSize="32"
           fill="#ffffff"
-          letterSpacing="13"
+          letterSpacing="8"
         >
           EVENTS
         </SvgText>

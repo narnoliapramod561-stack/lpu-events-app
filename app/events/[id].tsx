@@ -62,6 +62,9 @@ function SectionContent({ content, dark }: { content: unknown; dark: boolean }) 
   return <Text style={[styles.description, { color: palette.mutedText }]}>No detailed content has been provided for this section yet.</Text>;
 }
 
+import { BookingDisclaimerModal } from '../../src/components/BookingDisclaimerModal';
+import { ShareModal } from '../../src/components/ShareModal';
+
 export default function EventDetailsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const eventId = Array.isArray(id) ? id[0] : id ?? '';
@@ -73,6 +76,8 @@ export default function EventDetailsScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('about');
   const [imageFailed, setImageFailed] = useState(false);
+  const [bookingModalVisible, setBookingModalVisible] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   const load = useCallback(async (force = false) => {
     if (!eventId) { setLoading(false); setErrorMessage('A valid event identifier is required.'); return; }
@@ -93,27 +98,100 @@ export default function EventDetailsScreen() {
   const externalUrl = isSafeExternalUrl(event?.external_registration_url) ? event.external_registration_url : null;
   const image = event && !imageFailed ? eventImageSource(event) : undefined;
 
-  const openBooking = async () => { if (externalUrl) await openExternalUrl(externalUrl, 'registration'); };
-  const shareEvent = async () => { if (event) await Share.share({ message: `${event.name}\n${event.venue_name}\n${dateText(event)}` }); };
+  const handleBookPress = () => {
+    if (externalUrl) {
+      setBookingModalVisible(true);
+    }
+  };
+
+  const handleConfirmBooking = async () => {
+    setBookingModalVisible(false);
+    if (externalUrl) await openExternalUrl(externalUrl, 'registration');
+  };
+
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/'); };
 
-  return <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
-    <ImageBackground source={require('../../assets/lpu-events-campus-glass-background.webp')} resizeMode="cover" style={StyleSheet.absoluteFill} imageStyle={styles.backgroundImage}><View style={[StyleSheet.absoluteFill, { backgroundColor: dark ? 'rgba(14,14,18,.62)' : 'rgba(244,247,251,.04)' }]} /></ImageBackground>
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={palette.primary} />}>
-      <View style={styles.topbar}><Pressable onPress={goBack} accessibilityRole="button" style={[styles.back, { borderColor: palette.outline, backgroundColor: palette.surface }]}><NativeIcon name="arrow-left" size={17} color={palette.text} /><Text style={[styles.backText, { color: palette.text }]}>Back to events</Text></Pressable><Pressable onPress={() => void shareEvent()} accessibilityLabel="Share event" style={[styles.share, { borderColor: palette.outline, backgroundColor: palette.surface }]}><NativeIcon name="share" size={16} color={palette.primary} /><Text style={[styles.backText, { color: palette.text }]}>Share</Text></Pressable></View>
-      {loading && !event ? <Skeleton dark={dark} /> : null}
-      {!loading && !event ? <View style={styles.center}><Text style={[styles.errorTitle, { color: palette.text }]}>Event Not Found</Text><Text style={[styles.description, { color: palette.mutedText }]}>{errorMessage ?? 'This event could not be found.'}</Text><Pressable onPress={() => void load(true)} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable></View> : null}
-      {event ? <><View style={[styles.posterFrame, { backgroundColor: dark ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.48)', borderColor: palette.outline }]}><Image source={image ?? undefined} resizeMode="contain" style={styles.poster} onError={() => setImageFailed(true)} /><View style={styles.badge}><Text style={styles.badgeText}>{event.pricing_type === 'PAID' ? 'PAID EVENT' : 'FREE EVENT'}</Text></View></View>
-        <Text style={[styles.title, { color: palette.text }]}>{event.name}</Text>
-        {event.status === 'CANCELLED' ? <View style={styles.cancelled}><Text style={styles.cancelledTitle}>Event Cancelled</Text><Text style={styles.cancelledText}>This event was cancelled by the organizers.</Text></View> : null}
-        <Text style={[styles.organizer, { color: palette.primary }]}>Organized by {event.organizations?.name || 'LPU Organization'}</Text>
-        <View style={[styles.infoPanel, { backgroundColor: palette.surface, borderColor: palette.outline }]}><InfoRow icon="calendar" label="DATE" value={dateText(event)} dark={dark} tone="orange" /><InfoRow icon="clock" label="TIME" value={timeText(event)} dark={dark} tone="yellow" /><InfoRow icon="map-pin" label="VENUE" value={event.venue_name || 'LPU Campus'} dark={dark} tone="pink" last /></View>
-        <View style={[styles.tabs, { backgroundColor: palette.surface, borderColor: palette.outline }]}>{sections.map((section) => <Pressable key={section.id} onPress={() => setActiveSection(section.id)} style={[styles.tab, activeSection === section.id && styles.activeTab]}><Text style={[styles.tabText, { color: activeSection === section.id ? '#fff' : palette.variantText }]}>{section.title}</Text></Pressable>)}</View>
-        <View style={[styles.contentPanel, { backgroundColor: palette.surface, borderColor: palette.outline }]}><SectionContent content={currentSection?.content} dark={dark} /></View>
-        {externalUrl ? <Pressable onPress={() => void openBooking()} style={styles.booking}><Text style={styles.bookingText}>Book Ticket</Text><NativeIcon name="external-link" size={16} color="#fff" /></Pressable> : null}
-      </> : null}
-    </ScrollView>
-  </SafeAreaView>;
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
+      <ImageBackground source={require('../../assets/lpu-events-campus-glass-background.webp')} resizeMode="cover" style={StyleSheet.absoluteFill} imageStyle={styles.backgroundImage}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: dark ? 'rgba(14,14,18,.62)' : 'rgba(244,247,251,.04)' }]} />
+      </ImageBackground>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={palette.primary} />}>
+        <View style={styles.topbar}>
+          <Pressable onPress={goBack} accessibilityRole="button" style={[styles.back, { borderColor: palette.outline, backgroundColor: palette.surface }]}>
+            <NativeIcon name="arrow-left" size={17} color={palette.text} />
+            <Text style={[styles.backText, { color: palette.text }]}>Back to events</Text>
+          </Pressable>
+          <Pressable onPress={() => setShareModalVisible(true)} accessibilityLabel="Share event" style={[styles.share, { borderColor: palette.outline, backgroundColor: palette.surface }]}>
+            <NativeIcon name="share" size={16} color={palette.primary} />
+            <Text style={[styles.backText, { color: palette.text }]}>Share</Text>
+          </Pressable>
+        </View>
+        {loading && !event ? <Skeleton dark={dark} /> : null}
+        {!loading && !event ? (
+          <View style={styles.center}>
+            <Text style={[styles.errorTitle, { color: palette.text }]}>Event Not Found</Text>
+            <Text style={[styles.description, { color: palette.mutedText }]}>{errorMessage ?? 'This event could not be found.'}</Text>
+            <Pressable onPress={() => void load(true)} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable>
+          </View>
+        ) : null}
+        {event ? (
+          <>
+            <View style={[styles.posterFrame, { backgroundColor: dark ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.48)', borderColor: palette.outline }]}>
+              <Image source={image ?? undefined} resizeMode="contain" style={styles.poster} onError={() => setImageFailed(true)} />
+              <View style={styles.badge}><Text style={styles.badgeText}>{event.pricing_type === 'PAID' ? 'PAID EVENT' : 'FREE EVENT'}</Text></View>
+            </View>
+            <Text style={[styles.title, { color: palette.text }]}>{event.name}</Text>
+            {event.status === 'CANCELLED' ? (
+              <View style={styles.cancelled}>
+                <Text style={styles.cancelledTitle}>Event Cancelled</Text>
+                <Text style={styles.cancelledText}>This event was cancelled by the organizers.</Text>
+              </View>
+            ) : null}
+            <Text style={[styles.organizer, { color: palette.primary }]}>Organized by {event.organizations?.name || 'LPU Organization'}</Text>
+            <View style={[styles.infoPanel, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
+              <InfoRow icon="calendar" label="DATE" value={dateText(event)} dark={dark} tone="orange" />
+              <InfoRow icon="clock" label="TIME" value={timeText(event)} dark={dark} tone="yellow" />
+              <InfoRow icon="map-pin" label="VENUE" value={event.venue_name || 'LPU Campus'} dark={dark} tone="pink" last />
+            </View>
+            <View style={[styles.tabs, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
+              {sections.map((section) => (
+                <Pressable key={section.id} onPress={() => setActiveSection(section.id)} style={[styles.tab, activeSection === section.id && styles.activeTab]}>
+                  <Text style={[styles.tabText, { color: activeSection === section.id ? '#fff' : palette.variantText }]}>{section.title}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={[styles.contentPanel, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
+              <SectionContent content={currentSection?.content} dark={dark} />
+            </View>
+            {externalUrl ? (
+              <Pressable onPress={handleBookPress} style={styles.booking}>
+                <Text style={styles.bookingText}>Book Ticket</Text>
+                <NativeIcon name="arrow-up-right" size={16} color="#fff" />
+              </Pressable>
+            ) : null}
+          </>
+        ) : null}
+      </ScrollView>
+
+      {/* Booking Disclaimer Modal */}
+      <BookingDisclaimerModal
+        visible={bookingModalVisible}
+        onClose={() => setBookingModalVisible(false)}
+        onConfirm={handleConfirmBooking}
+        event={event}
+        dark={dark}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        event={event}
+        dark={dark}
+      />
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({

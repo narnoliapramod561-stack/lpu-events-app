@@ -1,15 +1,27 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import type { EventFeedItem, NativeAdSystemConfig, NativeAdvertisement, NativeCarouselItem } from '../api/types';
-import { colors, radii, shadows, spacing, typography } from '../design/tokens';
+import {
+  FlatList,
+  Image,
+  ImageSourcePropType,
+  Linking,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import Svg, { LinearGradient, Rect as SvgRect, Stop } from 'react-native-svg';
+import type { EventFeedItem, NativeCarouselItem } from '../api/types';
+import { radii, shadows, spacing, typography } from '../design/tokens';
 import { eventImageSource, mediaUrl } from '../features/homepageModels';
-import { DirectAdBanner } from './DirectAdBanner';
+import { NativeIcon } from './NativeIcon';
 
 interface NativeHeroCarouselProps {
   items: NativeCarouselItem[];
   featuredEvents: EventFeedItem[];
-  ads: NativeAdvertisement[];
-  adConfig: NativeAdSystemConfig | null;
   dark: boolean;
   onSelectEvent: (id: string) => void;
 }
@@ -18,137 +30,346 @@ interface Slide {
   id: string;
   title: string;
   description?: string;
-  image: ReturnType<typeof eventImageSource>;
+  image: ImageSourcePropType | null;
   category: string;
-  date?: string;
-  time?: string;
-  venue?: string;
   eventId?: string;
-  ad?: NativeAdvertisement;
+  ctaUrl?: string | null;
   duration: number;
 }
 
-const dateLabel = (value?: string) => {
-  if (!value) return '';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-};
+function NativeHeroCarouselComponent({
+  items,
+  featuredEvents,
+  dark,
+  onSelectEvent,
+}: NativeHeroCarouselProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const cardWidth = Math.max(280, Math.round(windowWidth - spacing.gutter * 2));
+  const cardHeight = Math.round((cardWidth * 2) / 3);
 
-const timeLabel = (value?: string) => {
-  if (!value) return '';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-};
-
-function NativeHeroCarouselComponent({ items, featuredEvents, ads, adConfig, dark, onSelectEvent }: NativeHeroCarouselProps) {
-  const { width } = useWindowDimensions();
+  const flatListRef = useRef<FlatList<Slide>>(null);
   const [index, setIndex] = useState(0);
   const [interacting, setInteracting] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const palette = dark ? colors.dark : colors.light;
 
   const slides = useMemo<Slide[]>(() => {
     const eventById = new Map(featuredEvents.map((event) => [event.id, event]));
-    const base = items.filter((item) => item.is_active).flatMap<Slide>((item) => {
-      if (item.item_type === 'ADVERTISEMENT') {
-        const ad = item.advertisements ?? ads.find((candidate) => candidate.id === item.advertisement_id);
-        return ad ? [{ id: item.id, title: item.custom_title || ad.name, description: item.custom_subtitle || 'Featured university partner promotion.', image: mediaUrl(ad.media_assets) ? { uri: mediaUrl(ad.media_assets)! } : require('../../assets/defaults/hero_default.webp'), category: item.badge_text || 'Sponsored Partner', ad, duration: item.display_duration_ms || 5000 }] : [];
-      }
+    const list = items.filter((item) => item.is_active).flatMap<Slide>((item) => {
       if (item.item_type === 'EVENT') {
         const event = (item.event_id && eventById.get(item.event_id)) || item.events;
         if (!event) return [];
         return [{
           id: item.id,
-          title: item.custom_title || event.name,
-          description: item.custom_subtitle || event.description,
+          title: item.custom_title?.trim() || event.name,
+          description: item.custom_subtitle?.trim() || event.description,
           image: eventImageSource(event),
-          category: item.badge_text || event.categories?.name || 'Featured Event',
-          date: dateLabel(event.start_at),
-          time: timeLabel(event.start_at),
-          venue: event.venue_name,
+          category: item.badge_text?.trim() || event.categories?.name || 'Featured Event',
           eventId: event.id,
+          ctaUrl: item.custom_cta_url,
           duration: item.display_duration_ms || 5000,
         }];
       }
       return item.media_assets ? [{
         id: item.id,
-        title: item.custom_title || 'Campus Spotlight',
-        description: item.custom_subtitle || 'Featured university stories and announcements.',
-        image: mediaUrl(item.media_assets) ? { uri: mediaUrl(item.media_assets)! } : require('../../assets/defaults/hero_default.webp'),
-        category: item.badge_text || 'Spotlight',
+        title: item.custom_title?.trim() || 'Campus Spotlight',
+        description: item.custom_subtitle?.trim() || 'Featured university stories and announcements.',
+        image: mediaUrl(item.media_assets)
+          ? { uri: mediaUrl(item.media_assets)! }
+          : require('../../assets/defaults/hero_default.webp'),
+        category: item.badge_text?.trim() || 'Spotlight',
+        ctaUrl: item.custom_cta_url,
         duration: item.display_duration_ms || 5000,
       }] : [];
     });
-    const fallback = base;
-    const placement = adConfig?.placements.hero_carousel;
-    if (!adConfig?.global_enabled || !placement?.enabled || placement.provider !== 'direct' || !ads.length) return fallback;
-    const selected = placement.selected_ad_ids?.length
-      ? placement.selected_ad_ids.map((id) => ads.find((ad) => ad.id === id)).filter((ad): ad is NativeAdvertisement => Boolean(ad))
-      : ads;
-    const maxAds = Math.min(placement.max_ads ?? 3, selected.length);
-    const frequency = Math.max(placement.frequency ?? 2, 1);
-    const result: Slide[] = [];
-    let adIndex = 0;
-    fallback.forEach((slide, slideIndex) => {
-      result.push(slide);
-      if ((slideIndex + 1) % frequency === 0 && adIndex < maxAds) {
-        const ad = selected[adIndex++];
-        result.push({ id: `hero-ad-${ad.id}-${slideIndex}`, title: ad.name, description: 'Featured university partner promotion.',         image: mediaUrl(ad.media_assets) ? { uri: mediaUrl(ad.media_assets)! } : require('../../assets/defaults/hero_default.webp'), category: 'Sponsored Partner', ad, duration: 5000 });
-      }
-    });
-    return result;
-  }, [adConfig, ads, featuredEvents, items]);
+
+    if (!list.length && featuredEvents.length) {
+      return featuredEvents.slice(0, 5).map((evt) => ({
+        id: evt.id,
+        title: evt.name,
+        description: evt.description,
+        image: eventImageSource(evt),
+        category: evt.categories?.name || 'Featured Event',
+        eventId: evt.id,
+        duration: 5000,
+      }));
+    }
+    return list;
+  }, [featuredEvents, items]);
 
   useEffect(() => {
     if (index >= slides.length && slides.length > 0) setIndex(0);
   }, [index, slides.length]);
 
-  const schedule = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
-    if (slides.length < 2 || interacting) return;
-    timer.current = setTimeout(() => setIndex((current) => (current + 1) % slides.length), slides[index]?.duration || 5000);
-  }, [index, interacting, slides]);
+  const goTo = useCallback(
+    (next: number, animated = true) => {
+      if (!slides.length) return;
+      const target = (next + slides.length) % slides.length;
+      setInteracting(true);
+      if (timer.current) clearTimeout(timer.current);
+      setIndex(target);
+      flatListRef.current?.scrollToOffset({
+        offset: target * cardWidth,
+        animated,
+      });
+      setTimeout(() => setInteracting(false), 500);
+    },
+    [cardWidth, slides.length]
+  );
 
+  // Auto-advance schedule
   useEffect(() => {
-    schedule();
-    return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [schedule]);
+    if (slides.length <= 1 || interacting) return;
+    const duration = slides[index]?.duration || 5000;
+    timer.current = setTimeout(() => {
+      const next = (index + 1) % slides.length;
+      goTo(next, true);
+    }, duration);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [goTo, index, interacting, slides]);
 
-  if (!slides.length) {
-    return (
-      <View style={[styles.empty, { backgroundColor: palette.surface, borderColor: palette.outline }]}>
-        <Text style={[styles.emptyTitle, { color: palette.text }]}>Featured events</Text>
-        <Text style={{ color: palette.mutedText }}>New campus highlights will appear here.</Text>
-      </View>
-    );
-  }
+  const handleAction = useCallback(
+    (slide: Slide) => {
+      if (slide.ctaUrl) {
+        const url = slide.ctaUrl.trim();
+        if (/^https?:\/\//i.test(url)) {
+          void Linking.openURL(url);
+          return;
+        }
+      }
+      if (slide.eventId) {
+        onSelectEvent(slide.eventId);
+      }
+    },
+    [onSelectEvent]
+  );
 
-  const slide = slides[index];
-  const goTo = (next: number) => {
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offsetX = e.nativeEvent.contentOffset.x;
+      const newIndex = Math.round(offsetX / cardWidth);
+      if (newIndex >= 0 && newIndex < slides.length) {
+        setIndex((prev) => (prev !== newIndex ? newIndex : prev));
+      }
+    },
+    [cardWidth, slides.length]
+  );
+
+  const handleScrollBeginDrag = useCallback(() => {
     setInteracting(true);
     if (timer.current) clearTimeout(timer.current);
-    setIndex((next + slides.length) % slides.length);
-    setTimeout(() => setInteracting(false), 350);
-  };
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    setTimeout(() => setInteracting(false), 2000);
+  }, []);
+
+  const handleMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offsetX = e.nativeEvent.contentOffset.x;
+      const newIndex = Math.round(offsetX / cardWidth);
+      if (newIndex >= 0 && newIndex < slides.length) {
+        setIndex((prev) => (prev !== newIndex ? newIndex : prev));
+      }
+      setInteracting(false);
+    },
+    [cardWidth, slides.length]
+  );
+
+  if (!slides.length) {
+    return null;
+  }
 
   return (
     <View style={styles.wrapper}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={slide.title}
-        onPress={() => slide.ad ? undefined : slide.eventId ? onSelectEvent(slide.eventId) : undefined}
-        onTouchStart={() => setInteracting(true)}
-        onTouchEnd={() => setInteracting(false)}
-        style={[styles.card, { height: Math.min(width * 0.625, 360), backgroundColor: palette.surface }]}
-      >
-        {slide.image ? <Image source={slide.image} resizeMode="contain" style={styles.image} /> : <View style={styles.imageFallback} />}
-        <Pressable accessibilityLabel="Previous featured item" onPress={() => goTo(index - 1)} style={[styles.arrow, styles.leftArrow]}><Text style={styles.arrowText}>‹</Text></Pressable>
-        <Pressable accessibilityLabel="Next featured item" onPress={() => goTo(index + 1)} style={[styles.arrow, styles.rightArrow]}><Text style={styles.arrowText}>›</Text></Pressable>
-      </Pressable>
-      <View style={styles.controls}>
-        <View style={styles.dots}>{slides.map((item, dotIndex) => <View key={item.id} style={[styles.dot, dotIndex === index && styles.activeDot]} />)}</View>
+      {/* Outer Container for Carousel and Edge Chevrons */}
+      <View style={[styles.carouselContainer, { width: cardWidth, height: cardHeight }]}>
+        <FlatList
+          ref={flatListRef}
+          data={slides}
+          keyExtractor={(item) => item.id}
+          horizontal
+          pagingEnabled={Platform.OS === 'ios'}
+          snapToInterval={cardWidth}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          disableIntervalMomentum={true}
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          overScrollMode="never"
+          bounces={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
+          getItemLayout={(_data, idx) => ({
+            length: cardWidth,
+            offset: cardWidth * idx,
+            index: idx,
+          })}
+          style={[styles.flatList, { width: cardWidth, height: cardHeight }]}
+          renderItem={({ item }) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={item.title}
+              onPress={() => handleAction(item)}
+              style={[
+                styles.card,
+                {
+                  width: cardWidth,
+                  height: cardHeight,
+                  backgroundColor: dark ? 'rgba(34,35,40,0.65)' : 'rgba(255,255,255,0.48)',
+                  borderColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.82)',
+                },
+              ]}
+            >
+              {item.image ? (
+                <>
+                  {/* Ambient Refractive Blurred Backdrop */}
+                  <Image
+                    source={item.image}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                    blurRadius={24}
+                  />
+                  {/* Backdrop Tint Surface */}
+                  <View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      {
+                        backgroundColor: dark ? 'rgba(0,0,0,0.45)' : 'rgba(15,23,42,0.30)',
+                      },
+                    ]}
+                  />
+
+                  {/* Crisp Centered Foreground Poster */}
+                  <Image
+                    source={item.image}
+                    style={styles.foregroundImage}
+                    resizeMode="contain"
+                  />
+                </>
+              ) : (
+                <View style={styles.fallbackContainer}>
+                  <View
+                    style={[
+                      styles.fallbackPill,
+                      {
+                        backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(249,115,22,0.20)',
+                        borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(249,115,22,0.30)',
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.fallbackPillText, { color: dark ? '#ffffff' : '#ea580c' }]}>
+                      CAMPUS EVENTS &amp; FESTIVITIES
+                    </Text>
+                  </View>
+                  <Text numberOfLines={2} style={styles.fallbackTitle}>
+                    {item.title}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+        />
+
+        {/* Side Navigation Chevrons (< and >) Centered Vertically on Outer Edges */}
+        {slides.length > 1 && (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Previous slide"
+              onPress={() => goTo(index - 1)}
+              style={[
+                styles.sideArrowButton,
+                styles.leftArrowButton,
+                {
+                  backgroundColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.78)',
+                  borderColor: dark ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.85)',
+                },
+              ]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <NativeIcon
+                name="chevron-left"
+                size={16}
+                strokeWidth={2.5}
+                color={dark ? '#ffffff' : '#334155'}
+              />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Next slide"
+              onPress={() => goTo(index + 1)}
+              style={[
+                styles.sideArrowButton,
+                styles.rightArrowButton,
+                {
+                  backgroundColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.78)',
+                  borderColor: dark ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.85)',
+                },
+              ]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <NativeIcon
+                name="chevron-right"
+                size={16}
+                strokeWidth={2.5}
+                color={dark ? '#ffffff' : '#334155'}
+              />
+            </Pressable>
+          </>
+        )}
       </View>
-      {slide.ad ? <DirectAdBanner ad={slide.ad} dark={dark} compact /> : null}
+
+      {/* Progress Dots — Centered Below the Card in Frosted Glass Capsule */}
+      {slides.length > 1 && (
+        <View style={styles.dotsWrapper}>
+          <View
+            style={[
+              styles.dotsCapsule,
+              {
+                backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.65)',
+                borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.85)',
+              },
+            ]}
+          >
+            {slides.map((_, dotIdx) => {
+              const isActive = dotIdx === index;
+              return (
+                <Pressable
+                  key={dotIdx}
+                  onPress={() => goTo(dotIdx)}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  accessibilityLabel={`Go to slide ${dotIdx + 1}`}
+                  style={[
+                    styles.capsuleDotBase,
+                    isActive
+                      ? styles.capsuleDotActive
+                      : [
+                          styles.capsuleDotInactive,
+                          { backgroundColor: dark ? 'rgba(255,255,255,0.25)' : '#cbd5e1' },
+                        ],
+                  ]}
+                >
+                  {isActive && (
+                    <Svg width={24} height={8} style={StyleSheet.absoluteFill}>
+                      <LinearGradient id="hero-dot-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <Stop offset="0%" stopColor="#ff7a18" />
+                        <Stop offset="100%" stopColor="#ea580c" />
+                      </LinearGradient>
+                      <SvgRect width={24} height={8} rx={4} ry={4} fill="url(#hero-dot-grad)" />
+                    </Svg>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -156,18 +377,113 @@ function NativeHeroCarouselComponent({ items, featuredEvents, ads, adConfig, dar
 export const NativeHeroCarousel = memo(NativeHeroCarouselComponent);
 
 const styles = StyleSheet.create({
-  wrapper: { marginHorizontal: spacing.gutter, marginTop: spacing.md },
-  card: { overflow: 'hidden', borderRadius: radii.xl, ...shadows.glass },
-  image: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
-  imageFallback: { ...StyleSheet.absoluteFill, backgroundColor: '#182033' },
-  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
-  arrow: { position: 'absolute', top: '45%', zIndex: 2, width: 36, height: 36, borderRadius: radii.pill, backgroundColor: 'rgba(15,23,42,0.54)', alignItems: 'center', justifyContent: 'center' },
-  leftArrow: { left: spacing.sm },
-  rightArrow: { right: spacing.sm },
-  arrowText: { fontSize: 27, lineHeight: 29, color: '#fff' },
-  dots: { flexDirection: 'row', gap: 5, maxWidth: 180 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#cbd5e1' },
-  activeDot: { width: 18, backgroundColor: '#f97316' },
-  empty: { marginHorizontal: spacing.gutter, marginTop: spacing.md, minHeight: 180, borderRadius: radii.xl, borderWidth: 1, padding: spacing.lg, justifyContent: 'center' },
-  emptyTitle: { fontSize: typography.sizes.title, fontWeight: '800', marginBottom: spacing.xs },
+  wrapper: {
+    marginHorizontal: spacing.gutter,
+    marginTop: spacing.md,
+    alignItems: 'center',
+  },
+  carouselContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flatList: {
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  card: {
+    borderRadius: 24,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.glass,
+  },
+  foregroundImage: {
+    width: '100%',
+    height: '100%',
+    zIndex: 10,
+  },
+  fallbackContainer: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  fallbackPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  fallbackPillText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  fallbackTitle: {
+    fontFamily: typography.headingFamily,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '900',
+    color: '#ffffff',
+    textAlign: 'center',
+  },
+  sideArrowButton: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -16,
+    zIndex: 30,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  leftArrowButton: {
+    left: -8,
+  },
+  rightArrowButton: {
+    right: -8,
+  },
+  dotsWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    marginBottom: 0,
+  },
+  dotsCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+  },
+  capsuleDotBase: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  capsuleDotActive: {
+    width: 24,
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  capsuleDotInactive: {
+    width: 8,
+  },
 });

@@ -26,7 +26,6 @@ const homepage = {
   carousel: [],
   featured: [],
   trending: [],
-  advertisements: [],
   settings: [],
   events: [event],
 };

@@ -1,8 +1,6 @@
 import type {
   EventFeedItem,
   HomepageBundle,
-  NativeAdSystemConfig,
-  NativeAdvertisement,
   NativeCarouselItem,
   NativeHappeningTodayConfig,
   NativeMediaAsset,
@@ -35,28 +33,16 @@ const event = (value: unknown): EventFeedItem | null => {
   return value as unknown as EventFeedItem;
 };
 
-export const advertisement = (value: unknown): NativeAdvertisement | null => {
-  if (!isRecord(value) || typeof value.id !== 'string' || typeof value.name !== 'string') return null;
-  return {
-    id: value.id,
-    name: value.name,
-    media_id: typeof value.media_id === 'string' ? value.media_id : null,
-    redirect_url: typeof value.redirect_url === 'string' ? value.redirect_url : null,
-    media_assets: mediaAsset(value.media_assets),
-  };
-};
-
 export const normalizeCarouselItems = (value: unknown): NativeCarouselItem[] => {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item): NativeCarouselItem[] => {
     if (!isRecord(item) || typeof item.id !== 'string') return [];
     const itemType = item.item_type;
-    if (itemType !== 'EVENT' && itemType !== 'ADVERTISEMENT' && itemType !== 'MEDIA') return [];
+    if (itemType !== 'EVENT' && itemType !== 'MEDIA') return [];
     return [{
       id: item.id,
       item_type: itemType,
       event_id: typeof item.event_id === 'string' ? item.event_id : null,
-      advertisement_id: typeof item.advertisement_id === 'string' ? item.advertisement_id : null,
       media_id: typeof item.media_id === 'string' ? item.media_id : null,
       is_active: item.is_active !== false,
       display_duration_ms: typeof item.display_duration_ms === 'number' ? item.display_duration_ms : undefined,
@@ -66,17 +52,10 @@ export const normalizeCarouselItems = (value: unknown): NativeCarouselItem[] => 
       custom_cta_url: typeof item.custom_cta_url === 'string' ? item.custom_cta_url : null,
       badge_text: typeof item.badge_text === 'string' ? item.badge_text : null,
       events: event(item.events),
-      advertisements: advertisement(item.advertisements),
       media_assets: mediaAsset(item.media_assets),
     }];
   });
 };
-
-export const normalizeAdvertisements = (value: unknown): NativeAdvertisement[] =>
-  Array.isArray(value) ? value.flatMap((item) => {
-    const normalized = advertisement(item);
-    return normalized ? [normalized] : [];
-  }) : [];
 
 export const settingValue = (bundle: HomepageBundle, key: string): unknown => {
   const setting = bundle.settings.find((item) => item.key === key);
@@ -87,32 +66,6 @@ export const settingValue = (bundle: HomepageBundle, key: string): unknown => {
   } catch {
     return null;
   }
-};
-
-export const normalizeAdSystemConfig = (value: unknown): NativeAdSystemConfig | null => {
-  if (!isRecord(value) || !isRecord(value.placements)) return null;
-  const placement = (candidate: unknown): NativeAdSystemConfig['placements']['hero_carousel'] => {
-    if (!isRecord(candidate)) return undefined;
-    const provider = candidate.provider;
-    if (provider !== 'disabled' && provider !== 'adsense' && provider !== 'direct') return undefined;
-    return {
-      enabled: candidate.enabled !== false,
-      provider: provider as 'disabled' | 'adsense' | 'direct',
-      frequency: typeof candidate.frequency === 'number' ? candidate.frequency : undefined,
-      max_ads: typeof candidate.max_ads === 'number' ? candidate.max_ads : undefined,
-      selected_ad_ids: Array.isArray(candidate.selected_ad_ids)
-        ? candidate.selected_ad_ids.filter((id): id is string => typeof id === 'string')
-        : undefined,
-    };
-  };
-  return {
-    global_enabled: value.global_enabled !== false,
-    max_ads_per_page: typeof value.max_ads_per_page === 'number' ? value.max_ads_per_page : undefined,
-    placements: {
-      hero_carousel: placement(value.placements.hero_carousel),
-      happening_today: placement(value.placements.happening_today),
-    },
-  };
 };
 
 export const normalizeHappeningConfig = (value: unknown): NativeHappeningTodayConfig | null => {

@@ -28,8 +28,8 @@ const content: Record<Exclude<InfoPageKind, 'contact'>, { eyebrow: string; title
     sections: [
       ['Google AdSense & third-party advertising', 'Third-party vendors, including Google, may use cookies to serve ads based on a user’s prior visits. Users can manage personalized advertising through Google Ads Settings and AboutAds.info.'],
       ['Information we handle', 'The platform provides public event discovery. It does not require student accounts, collect passwords, or provide student profiles. Basic technical data may be handled by hosting, analytics, advertising, and security providers.'],
-      ['Your choices', 'You may control cookies and personalized advertising through your device and browser settings. For privacy or data questions, contact privacy@lpuevents.live.'],
-      ['Contact', 'For questions about this policy, email privacy@lpuevents.live.'],
+      ['Your choices', 'You may control cookies and personalized advertising through your device and browser settings. For privacy or data questions, contact contact@lpuevents.live.'],
+      ['Contact', 'For questions about this policy, email contact@lpuevents.live.'],
     ],
   },
   terms: {
@@ -60,9 +60,7 @@ export function InfoPage({ kind, dark }: { kind: InfoPageKind; dark: boolean }) 
         <Card dark={dark}>
           <Text style={[styles.body, { color: palette.mutedText }]}>Have questions about an upcoming event, need technical support, want to report an inaccurate listing, or inquire about platform partnerships? Reach out through an official channel.</Text>
           {[
-            ['General & Student Inquiries', 'contact@lpuevents.live'],
-            ['Privacy & Data Inquiries', 'privacy@lpuevents.live'],
-            ['Organizer Access & Partnerships', 'admin@lpuevents.live'],
+            ['Official Inquiries & Support', 'contact@lpuevents.live'],
           ].map(([label, address]) => <Pressable key={address} style={styles.contactRow} onPress={() => openMail(address, 'LPU Events inquiry')}><Text style={[styles.caption, { color: palette.mutedText }]}>{label}</Text><Text style={[styles.link, { color: palette.primary }]}>{address}</Text></Pressable>)}
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Send a message</Text>
           {submitted ? <Text style={[styles.body, { color: '#16a34a' }]}>Your message has been prepared in your mail client.</Text> : <>

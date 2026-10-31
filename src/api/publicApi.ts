@@ -50,7 +50,6 @@ const isHomepage = (value: unknown): value is HomepageBundle =>
   Array.isArray(value.carousel) &&
   Array.isArray(value.featured) &&
   isEventList(value.trending) &&
-  Array.isArray(value.advertisements) &&
   Array.isArray(value.settings) &&
   value.settings.every((setting) => isRecord(setting) && typeof setting.key === 'string' && 'value' in setting) &&
   isEventList(value.events);
@@ -236,8 +235,10 @@ export class PublicApiClient {
   }
 
   async getHomepageWithSnapshot(): Promise<ApiResult<HomepageBundle>> {
+    const live = await this.getHomepage();
+    if (live.data) return live;
     const snapshot = await this.getHomepageSnapshot();
-    return snapshot.data ? snapshot : this.getHomepage();
+    return snapshot.data ? snapshot : live;
   }
 
   async getEventsCatalogueSnapshot(): Promise<ApiResult<EventsCatalogueSnapshot>> {
