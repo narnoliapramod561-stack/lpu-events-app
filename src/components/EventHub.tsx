@@ -20,8 +20,9 @@ import Svg, {
 } from 'react-native-svg';
 import type { CategoryFeedItem, EventFeedItem } from '../api/types';
 import { PublicApiClient } from '../api/publicApi';
-import { colors, radii, shadows, spacing, typography } from '../design/tokens';
+import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { eventImageSource } from '../features/homepageModels';
+import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
 import {
   formatDisplayDate,
   formatEventDateRange,
@@ -307,12 +308,14 @@ function NativeDatePickerModal({
           style={[
             styles.modalContent,
             {
-              backgroundColor: dark ? '#1a1a24' : '#ffffff',
-              borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(226,232,240,0.95)',
+              backgroundColor: dark ? glass.dark.modalBg : glass.light.modalBg,
+              borderColor: dark ? glass.dark.border : glass.light.border,
+              borderWidth: 1.5,
             },
           ]}
           onPress={(e) => e.stopPropagation()}
         >
+          <SpecularTopRim dark={dark} height={1.5} />
           {/* Modal Header */}
           <View style={styles.modalHeader}>
             <View style={{ gap: 2 }}>
@@ -492,11 +495,14 @@ const EventCard = memo(
         style={[
           styles.card,
           {
-            backgroundColor: dark ? 'rgba(26,26,32,0.92)' : 'rgba(255,255,255,0.92)',
-            borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)',
+            backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
+            borderColor: dark ? glass.dark.border : glass.light.border,
+            borderWidth: 1.5,
           },
         ]}
       >
+        <SpecularTopRim dark={dark} height={1.5} />
+        <GlassSheen dark={dark} />
         {/* Event Cover Image */}
         <View style={styles.poster}>
           <Image
@@ -913,11 +919,13 @@ function EventHubComponent({
         style={[
           styles.filterPanel,
           {
-            backgroundColor: dark ? 'rgba(28, 30, 40, 0.88)' : 'rgba(255, 255, 255, 0.88)',
-            borderColor: dark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.88)',
+            backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
+            borderColor: dark ? glass.dark.border : glass.light.border,
+            borderWidth: 1.5,
           },
         ]}
       >
+        <SpecularTopRim dark={dark} height={1.5} />
         {/* Optical Ambient Caustics Mesh */}
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <Svg width="100%" height="100%">
@@ -1713,16 +1721,18 @@ const styles = StyleSheet.create({
   },
   inactiveLightChip: {
     backgroundColor: 'rgba(255,255,255,0.86)',
-    borderColor: 'rgba(226,232,240,0.95)',
+    borderColor: 'rgba(255,255,255,0.95)',
+    borderWidth: 1.5,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 1,
   },
   inactiveDarkChip: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1.5,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

@@ -2,8 +2,9 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { LpuEventsLogo } from './LpuEventsLogo';
-import { colors, radii, shadows, spacing, typography } from '../design/tokens';
+import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { openMailtoUrl } from '../utils/externalLinks';
+import { SpecularTopRim } from './ui/NativeGlass';
 
 interface NativeFooterProps {
   dark: boolean;
@@ -18,11 +19,13 @@ export function NativeFooter({ dark, onSelectCategories }: NativeFooterProps) {
       style={[
         styles.footer,
         {
-          backgroundColor: dark ? 'rgba(26,26,32,0.95)' : 'rgba(255,255,255,0.92)',
-          borderColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.85)',
+          backgroundColor: dark ? glass.dark.headerBg : glass.light.headerBg,
+          borderTopColor: dark ? glass.dark.border : glass.light.border,
+          borderTopWidth: 1.5,
         },
       ]}
     >
+      <SpecularTopRim dark={dark} height={1.5} />
       {/* Brand & Description */}
       <View style={styles.brandRow}>
         <LpuEventsLogo size={38} />

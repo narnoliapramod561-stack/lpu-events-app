@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeIcon } from './NativeIcon';
+import { SpecularTopRim } from './ui/NativeGlass';
 
 interface SiteNoticeBannerProps {
   bannerData: any;
@@ -38,9 +39,15 @@ export function SiteNoticeBanner({ bannerData, dark }: SiteNoticeBannerProps) {
   };
 
   const bgColors = {
-    info: dark ? 'rgba(37,99,235,0.22)' : 'rgba(219,234,254,0.92)',
-    warning: dark ? 'rgba(217,119,6,0.22)' : 'rgba(254,243,199,0.95)',
-    critical: dark ? 'rgba(225,29,72,0.25)' : 'rgba(254,226,226,0.95)',
+    info: dark ? 'rgba(37,99,235,0.25)' : 'rgba(219,234,254,0.85)',
+    warning: dark ? 'rgba(217,119,6,0.25)' : 'rgba(254,243,199,0.85)',
+    critical: dark ? 'rgba(225,29,72,0.28)' : 'rgba(254,226,226,0.85)',
+  }[urgency];
+
+  const borderColors = {
+    info: dark ? 'rgba(147,197,253,0.3)' : 'rgba(37,99,235,0.2)',
+    warning: dark ? 'rgba(252,211,77,0.3)' : 'rgba(217,119,6,0.2)',
+    critical: dark ? 'rgba(253,164,175,0.35)' : 'rgba(225,29,72,0.2)',
   }[urgency];
 
   const textColors = {
@@ -50,7 +57,8 @@ export function SiteNoticeBanner({ bannerData, dark }: SiteNoticeBannerProps) {
   }[urgency];
 
   return (
-    <View style={[styles.banner, { backgroundColor: bgColors }]}>
+    <View style={[styles.banner, { backgroundColor: bgColors, borderBottomColor: borderColors }]}>
+      <SpecularTopRim dark={dark} height={1} />
       <View style={styles.textWrap}>
         <NativeIcon
           name={urgency === 'critical' ? 'shield-alert' : 'info'}

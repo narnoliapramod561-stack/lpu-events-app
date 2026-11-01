@@ -16,12 +16,14 @@ import { PublicApiClient } from '../../src/api/publicApi';
 import type { EventDetails } from '../../src/api/types';
 import { eventImageSource } from '../../src/features/homepageModels';
 import { formatEventDateRange, formatEventTimeRange } from '../../src/features/eventHub';
-import { colors, radii, shadows, spacing, typography } from '../../src/design/tokens';
+import { colors, glass, radii, shadows, spacing, typography } from '../../src/design/tokens';
+import { BlurView } from 'expo-blur';
 import { NativeIcon, type IconName } from '../../src/components/NativeIcon';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { isSafeExternalUrl, openExternalUrl } from '../../src/utils/externalLinks';
 import { BookingDisclaimerModal } from '../../src/components/BookingDisclaimerModal';
 import { ShareModal } from '../../src/components/ShareModal';
+import { GlassSheen, SpecularTopRim } from '../../src/components/ui/NativeGlass';
 
 const api = new PublicApiClient();
 const dateText = (event: EventDetails) => formatEventDateRange(event.start_at, event.end_at) || 'Date to be announced';
@@ -255,7 +257,7 @@ export default function EventDetailsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-      {/* Background Layer with Dark Wash */}
+      {/* Background Layer with Dark Wash & Chromatic Refraction Fields */}
       <ImageBackground
         source={require('../../assets/lpu-events-campus-glass-background.webp')}
         resizeMode="cover"
@@ -287,7 +289,7 @@ export default function EventDetailsScreen() {
           />
         }
       >
-        {/* Top Bar with Back & Share Actions */}
+        {/* Top Bar with Back & Share Actions — Frosted Glass Jewel Buttons */}
         <View style={styles.topbar}>
           <Pressable
             onPress={goBack}
@@ -296,11 +298,28 @@ export default function EventDetailsScreen() {
             style={[
               styles.back,
               {
-                borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.90)',
-                backgroundColor: dark ? 'rgba(30,30,36,0.85)' : 'rgba(255,255,255,0.85)',
+                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+                backgroundColor: 'transparent',
+                borderWidth: 1.5,
+                overflow: 'hidden',
               },
             ]}
           >
+            <BlurView
+              pointerEvents="none"
+              intensity={dark ? 65 : 85}
+              tint={dark ? 'dark' : 'light'}
+              blurMethod="none"
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg },
+              ]}
+            />
+            <SpecularTopRim dark={dark} height={1} />
             <NativeIcon name="arrow-left" size={17} color={palette.text} strokeWidth={2.4} />
             <Text style={[styles.backText, { color: palette.text }]}>Back to events</Text>
           </Pressable>
@@ -311,11 +330,28 @@ export default function EventDetailsScreen() {
             style={[
               styles.share,
               {
-                borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.90)',
-                backgroundColor: dark ? 'rgba(30,30,36,0.85)' : 'rgba(255,255,255,0.85)',
+                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+                backgroundColor: 'transparent',
+                borderWidth: 1.5,
+                overflow: 'hidden',
               },
             ]}
           >
+            <BlurView
+              pointerEvents="none"
+              intensity={dark ? 65 : 85}
+              tint={dark ? 'dark' : 'light'}
+              blurMethod="none"
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg },
+              ]}
+            />
+            <SpecularTopRim dark={dark} height={1} />
             <NativeIcon name="share" size={16} color="#ea580c" strokeWidth={2.2} />
             <Text style={[styles.backText, { color: palette.text }]}>Share</Text>
           </Pressable>
@@ -342,11 +378,13 @@ export default function EventDetailsScreen() {
               style={[
                 styles.posterFrame,
                 {
-                  backgroundColor: dark ? 'rgba(26,26,32,0.92)' : 'rgba(255,255,255,0.92)',
-                  borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)',
+                  backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
+                  borderColor: dark ? glass.dark.border : glass.light.border,
+                  borderWidth: 1.5,
                 },
               ]}
             >
+              <SpecularTopRim dark={dark} height={1.5} />
               {image ? (
                 <>
                   <Image source={image} style={StyleSheet.absoluteFill} resizeMode="cover" blurRadius={24} />
@@ -406,11 +444,14 @@ export default function EventDetailsScreen() {
               style={[
                 styles.organizerCard,
                 {
-                  backgroundColor: dark ? 'rgba(30,30,36,0.85)' : 'rgba(255,255,255,0.85)',
-                  borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.90)',
+                  backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
+                  borderColor: dark ? glass.dark.border : glass.light.border,
+                  borderWidth: 1.5,
                 },
               ]}
             >
+              <SpecularTopRim dark={dark} height={1.5} />
+              <GlassSheen dark={dark} />
               <View style={styles.organizerIconBox}>
                 <NativeIcon name="users" size={19} color="#ea580c" strokeWidth={2.4} />
               </View>
@@ -432,11 +473,14 @@ export default function EventDetailsScreen() {
               style={[
                 styles.infoPanel,
                 {
-                  backgroundColor: dark ? 'rgba(30,30,36,0.85)' : 'rgba(255,255,255,0.85)',
-                  borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.90)',
+                  backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
+                  borderColor: dark ? glass.dark.border : glass.light.border,
+                  borderWidth: 1.5,
                 },
               ]}
             >
+              <SpecularTopRim dark={dark} height={1.5} />
+              <GlassSheen dark={dark} />
               <InfoRow icon="calendar" label="DATE" value={dateText(event)} dark={dark} tone="orange" />
               <InfoRow icon="clock" label="TIME" value={timeText(event)} dark={dark} tone="yellow" />
               <InfoRow icon="map-pin" label="VENUE" value={event.venue_name || 'LPU Campus'} dark={dark} tone="pink" last />
@@ -462,12 +506,14 @@ export default function EventDetailsScreen() {
                           : [
                               styles.inactiveTab,
                               {
-                                backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.70)',
-                                borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)',
+                                backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
+                                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+                                borderWidth: 1.5,
                               },
                             ],
                       ]}
                     >
+                      {isActive && <SpecularTopRim dark={dark} height={1} />}
                       <Text
                         style={[
                           styles.tabText,
@@ -492,28 +538,48 @@ export default function EventDetailsScreen() {
               style={[
                 styles.contentPanel,
                 {
-                  backgroundColor: dark ? 'rgba(30,30,36,0.92)' : 'rgba(255,255,255,0.92)',
-                  borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.95)',
+                  backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
+                  borderColor: dark ? glass.dark.border : glass.light.border,
+                  borderWidth: 1.5,
                 },
               ]}
             >
+              <SpecularTopRim dark={dark} height={1.5} />
+              <GlassSheen dark={dark} />
               <SectionContent content={currentSection?.content} dark={dark} />
             </View>
           </>
         ) : null}
       </ScrollView>
 
-      {/* Floating Sticky Bottom CTA Dock (Direct One-Tap Access without Scrolling) */}
+      {/* Floating Sticky Bottom CTA Dock with Hardware Blur */}
       {externalUrl && event ? (
         <View
           style={[
             styles.stickyBottomBar,
             {
-              backgroundColor: dark ? 'rgba(20,20,26,0.94)' : 'rgba(255,255,255,0.94)',
-              borderTopColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+              backgroundColor: 'transparent',
+              borderTopColor: dark ? glass.dark.border : glass.light.border,
+              borderTopWidth: 1.5,
+              overflow: 'hidden',
             },
           ]}
         >
+          <BlurView
+            pointerEvents="none"
+            intensity={dark ? 75 : 90}
+            tint={dark ? 'dark' : 'light'}
+            blurMethod="none"
+            style={StyleSheet.absoluteFill}
+          />
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: dark ? glass.dark.headerBg : glass.light.headerBg },
+            ]}
+          />
+          <SpecularTopRim dark={dark} height={1.5} />
           <Pressable
             onPress={handleBookPress}
             style={styles.stickyBookingButton}
@@ -529,8 +595,8 @@ export default function EventDetailsScreen() {
             style={[
               styles.stickyShareButton,
               {
-                backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)',
-                borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)',
+                backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+                borderColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
               },
             ]}
             accessibilityRole="button"

@@ -10,12 +10,14 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import Svg, { LinearGradient, Rect as SvgRect, Stop } from 'react-native-svg';
 import type { EventFeedItem } from '../api/types';
-import { colors, radii, shadows, spacing, typography } from '../design/tokens';
+import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { eventImageSource } from '../features/homepageModels';
 import { formatEventTime as formatTime } from '../features/eventHub';
 import { NativeIcon } from './NativeIcon';
+import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
 
 interface HappeningTodayNativeProps {
   events: EventFeedItem[];
@@ -31,13 +33,14 @@ const formatEventTime = (dateStr?: string) => {
 
 const formatTodayDate = () => {
   try {
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
+    const formatted = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
       month: 'short',
       day: 'numeric',
     }).format(new Date());
+    return `${formatted} • Live campus schedule`;
   } catch {
-    return 'Today';
+    return 'Today • Live campus schedule';
   }
 };
 
@@ -65,11 +68,14 @@ const EventCard = memo(function EventCard({
         styles.card,
         {
           width: cardWidth,
-          backgroundColor: dark ? 'rgba(26,26,32,0.92)' : 'rgba(255,255,255,0.92)',
-          borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)',
+          backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
+          borderColor: dark ? glass.dark.border : glass.light.border,
+          borderWidth: 1.5,
         },
       ]}
     >
+      <SpecularTopRim dark={dark} height={1.5} />
+      <GlassSheen dark={dark} />
       {/* 16:9 Banner Stage with Ambient Glow Backdrop matching Student Website */}
       <View style={styles.imageBox}>
         {image && (
@@ -120,8 +126,8 @@ const EventCard = memo(function EventCard({
         style={[
           styles.bottomDeck,
           {
-            backgroundColor: dark ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)',
-            borderTopColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.50)',
+            backgroundColor: dark ? glass.dark.cardDeckBg : glass.light.cardDeckBg,
+            borderTopColor: dark ? glass.dark.borderSubtle : glass.light.borderSubtle,
           },
         ]}
       >
@@ -141,8 +147,9 @@ const EventCard = memo(function EventCard({
               style={[
                 styles.metaPill,
                 {
-                  backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.70)',
-                  borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.80)',
+                  backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
+                  borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+                  borderWidth: 1.5,
                 },
               ]}
             >
@@ -162,8 +169,9 @@ const EventCard = memo(function EventCard({
                   styles.metaPill,
                   styles.venuePill,
                   {
-                    backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.70)',
-                    borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.80)',
+                    backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
+                    borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+                    borderWidth: 1.5,
                   },
                 ]}
               >
@@ -250,11 +258,13 @@ function HappeningTodayNativeComponent({
           style={[
             styles.viewAllButton,
             {
-              backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.75)',
-              borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.85)',
+              backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
+              borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+              borderWidth: 1.5,
             },
           ]}
         >
+          <SpecularTopRim dark={dark} height={1} />
           <Text style={styles.viewAllText}>View All</Text>
           <View
             style={[
@@ -294,18 +304,23 @@ function HappeningTodayNativeComponent({
           />
         )}
         ListFooterComponent={
-          events.length > 1 ? (
+          events.length > items.length ? (
             <Pressable
               onPress={handleOpenViewAll}
+              accessibilityRole="button"
+              accessibilityLabel={`Explore all ${events.length} events happening today`}
               style={[
                 styles.trailingCard,
                 {
                   width: cardWidth,
-                  backgroundColor: dark ? 'rgba(26,26,32,0.92)' : 'rgba(255,255,255,0.92)',
-                  borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)',
+                  backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
+                  borderColor: dark ? glass.dark.border : glass.light.border,
+                  borderWidth: 1.5,
                 },
               ]}
             >
+              <SpecularTopRim dark={dark} height={1.5} />
+              <GlassSheen dark={dark} />
               <View style={styles.trailingBannerArea}>
                 <View style={styles.trailingArrowCircle}>
                   <NativeIcon name="arrow-right" size={20} color="#ffffff" strokeWidth={2.4} />
@@ -317,8 +332,8 @@ function HappeningTodayNativeComponent({
                 style={[
                   styles.trailingBottomDeck,
                   {
-                    backgroundColor: dark ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)',
-                    borderTopColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.50)',
+                    backgroundColor: dark ? glass.dark.cardDeckBg : glass.light.cardDeckBg,
+                    borderTopColor: dark ? glass.dark.borderSubtle : glass.light.borderSubtle,
                   },
                 ]}
               >
@@ -352,17 +367,47 @@ function HappeningTodayNativeComponent({
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setIsModalOpen(false)} />
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setIsModalOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close happening today modal"
+          />
 
           <View
             style={[
               styles.modalSheet,
               {
-                backgroundColor: dark ? 'rgba(20,22,28,0.97)' : 'rgba(255,255,255,0.97)',
-                borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.85)',
+                backgroundColor: 'transparent',
+                borderColor: dark ? glass.dark.border : glass.light.border,
+                borderWidth: 1.5,
               },
             ]}
           >
+            {/* Native Hardware Blur Backdrop */}
+            <BlurView
+              pointerEvents="none"
+              intensity={dark ? 70 : 85}
+              tint={dark ? 'dark' : 'light'}
+              blurMethod="none"
+              style={StyleSheet.absoluteFill}
+            />
+
+            {/* Translucent Frosted Tint Overlay */}
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: dark ? glass.dark.modalBg : glass.light.modalBg },
+              ]}
+            />
+
+            <SpecularTopRim dark={dark} height={1.5} />
+
+            {/* Ambient Caustic Mesh for optical crystal refraction matching website */}
+            <View pointerEvents="none" style={styles.causticTopRight} />
+            <View pointerEvents="none" style={styles.causticBottomLeft} />
+
             {/* Drag Handle Bar */}
             <View style={styles.dragBarContainer}>
               <View
@@ -381,48 +426,54 @@ function HappeningTodayNativeComponent({
               ]}
             >
               <View style={styles.modalHeaderInfo}>
+                {/* Glowing Calendar Jewel */}
                 <View style={styles.modalCalendarIcon}>
                   <NativeIcon name="calendar-days" size={20} color="#ffffff" strokeWidth={2.2} />
                 </View>
                 <View style={styles.modalHeaderTitles}>
+                  {/* Title Row with Event Count Pill */}
                   <View style={styles.modalTitleRow}>
                     <Text
                       style={[styles.modalTitleText, { color: dark ? '#ffffff' : '#0f172a' }]}
                     >
                       Happening Today
                     </Text>
-                  </View>
-                  <View style={styles.modalSubtitleRow}>
-                    <Text
-                      style={[
-                        styles.modalSubtitleDate,
-                        { color: dark ? '#94a3b8' : '#64748b' },
-                      ]}
-                    >
-                      {formatTodayDate()}
-                    </Text>
-                    <View style={styles.modalDotSeparator} />
                     <View
                       style={[
                         styles.modalLiveBadge,
                         {
                           backgroundColor: dark
-                            ? 'rgba(249,115,22,0.20)'
-                            : 'rgba(249,115,22,0.12)',
-                          borderColor: 'rgba(249,115,22,0.30)',
+                            ? 'rgba(249,115,22,0.22)'
+                            : 'rgba(249,115,22,0.14)',
+                          borderColor: dark ? 'rgba(249,115,22,0.35)' : 'rgba(249,115,22,0.30)',
                         },
                       ]}
                     >
                       <View style={styles.livePulseDotInner} />
-                      <Text style={styles.modalLiveBadgeText}>
+                      <Text
+                        style={[
+                          styles.modalLiveBadgeText,
+                          { color: dark ? '#fdba74' : '#c2410c' },
+                        ]}
+                      >
                         {events.length} {events.length === 1 ? 'Event' : 'Events'}
                       </Text>
                     </View>
                   </View>
+                  {/* Subtitle: Date & Schedule */}
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.modalSubtitleDate,
+                      { color: dark ? '#cbd5e1' : '#64748b' },
+                    ]}
+                  >
+                    {formatTodayDate()}
+                  </Text>
                 </View>
               </View>
 
-              {/* Close Button */}
+              {/* Close Button matching Frosted Glass Jewel */}
               <Pressable
                 onPress={() => setIsModalOpen(false)}
                 accessibilityRole="button"
@@ -430,179 +481,202 @@ function HappeningTodayNativeComponent({
                 style={[
                   styles.modalCloseButton,
                   {
-                    backgroundColor: dark ? '#ffffff' : '#0f172a',
+                    backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)',
+                    borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.90)',
                   },
                 ]}
               >
-                <NativeIcon name="x" size={14} strokeWidth={2.5} color={dark ? '#0f172a' : '#ffffff'} />
+                <NativeIcon name="x" size={14} strokeWidth={2.4} color={dark ? '#f1f5f9' : '#334155'} />
               </Pressable>
             </View>
 
-            {/* Modal Event List */}
-            <ScrollView
-              style={styles.modalList}
-              contentContainerStyle={styles.modalListContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {events.map((evt, idx) => {
-                const isLast = idx === events.length - 1;
-                const categoryName = (evt.categories?.name || evt.category_id || 'CAMPUS EVENT').toUpperCase();
-                const timeString = formatEventTime(evt.start_at);
-
-                return (
-                  <React.Fragment key={evt.id || idx}>
-                    <Pressable
-                      onPress={() => {
-                        setIsModalOpen(false);
-                        onSelectEvent(evt.id);
-                      }}
-                      style={({ pressed }) => [
-                        styles.modalItemPressable,
+            {/* Modal Event Schedule List matching Student Website */}
+            <View style={styles.modalListWrapper}>
+              <ScrollView
+                style={styles.modalList}
+                contentContainerStyle={styles.modalListContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {events.length === 0 ? (
+                  <View style={styles.modalEmptyState}>
+                    <View
+                      style={[
+                        styles.emptyStateIconCircle,
                         {
-                          backgroundColor: pressed
-                            ? (dark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)')
-                            : 'transparent',
+                          backgroundColor: dark
+                            ? 'rgba(249,115,22,0.15)'
+                            : 'rgba(249,115,22,0.10)',
+                          borderColor: dark
+                            ? 'rgba(249,115,22,0.30)'
+                            : 'rgba(249,115,22,0.20)',
                         },
                       ]}
                     >
-                      {/* Row 1: Event Name on Left + Category Jewel Badge on Right + Apple-style Chevron */}
-                      <View style={styles.modalRow1}>
-                        <Text
-                          numberOfLines={1}
-                          style={[styles.modalItemTitle, { color: dark ? '#ffffff' : '#0f172a' }]}
-                        >
-                          {evt.name}
-                        </Text>
+                      <NativeIcon
+                        name="calendar-days"
+                        size={24}
+                        color="#ea580c"
+                        strokeWidth={2.2}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.emptyStateTitle,
+                        { color: dark ? '#ffffff' : '#0f172a' },
+                      ]}
+                    >
+                      No Events Scheduled For Today
+                    </Text>
+                    <Text
+                      style={[
+                        styles.emptyStateSubtitle,
+                        { color: dark ? '#94a3b8' : '#64748b' },
+                      ]}
+                    >
+                      Stay tuned for upcoming workshops, guest lectures, and campus activities scheduled later this week.
+                    </Text>
+                  </View>
+                ) : (
+                  events.map((evt, idx) => {
+                    const isLast = idx === events.length - 1;
+                    const timeString = formatEventTime(evt.start_at);
 
-                        <View style={styles.modalRow1Right}>
-                          <View
-                            style={[
-                              styles.modalCategoryBadge,
-                              {
-                                backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(15,23,42,0.06)',
-                                borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.10)',
-                              },
-                            ]}
-                          >
-                            <View style={styles.modalCategoryDot} />
+                    return (
+                      <React.Fragment key={evt.id || idx}>
+                        <Pressable
+                          onPress={() => {
+                            setIsModalOpen(false);
+                            onSelectEvent(evt.id);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`View details for ${evt.name}`}
+                          style={({ pressed }) => [
+                            styles.modalItemPressable,
+                            {
+                              backgroundColor: pressed
+                                ? (dark ? 'rgba(255,255,255,0.06)' : 'rgba(249,115,22,0.06)')
+                                : 'transparent',
+                            },
+                          ]}
+                        >
+                          {/* Row 1: Event Name (Hero Emphasis) + Subtle Arrow */}
+                          <View style={styles.modalRow1}>
                             <Text
-                              numberOfLines={1}
+                              numberOfLines={2}
                               style={[
-                                styles.modalCategoryBadgeText,
-                                { color: dark ? '#f1f5f9' : '#1e293b' },
+                                styles.modalItemTitle,
+                                { color: dark ? '#ffffff' : '#0f172a' },
                               ]}
                             >
-                              {categoryName}
+                              {evt.name}
                             </Text>
+                            <View style={styles.modalArrowBox}>
+                              <NativeIcon
+                                name="chevron-right"
+                                size={16}
+                                strokeWidth={2.4}
+                                color={dark ? '#94a3b8' : '#94a3b8'}
+                              />
+                            </View>
                           </View>
 
-                          <View
-                            style={[
-                              styles.modalChevronCircle,
-                              {
-                                backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.75)',
-                                borderColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
-                              },
-                            ]}
-                          >
-                            <NativeIcon
-                              name="chevron-right"
-                              size={13}
-                              strokeWidth={2.4}
-                              color={dark ? '#f1f5f9' : '#334155'}
+                          {/* Row 2: Premium Schedule Strip (Time on Left, Venue on Right) */}
+                          <View style={styles.modalRow2}>
+                            {/* Left: Time */}
+                            <View style={styles.modalScheduleLeft}>
+                              <View
+                                style={[
+                                  styles.modalScheduleIconBox,
+                                  {
+                                    backgroundColor: dark
+                                      ? 'rgba(234,88,12,0.22)'
+                                      : 'rgba(234,88,12,0.14)',
+                                    borderColor: 'rgba(234,88,12,0.30)',
+                                  },
+                                ]}
+                              >
+                                <NativeIcon name="clock" size={13} color="#ea580c" strokeWidth={2.6} />
+                              </View>
+                              <Text
+                                numberOfLines={1}
+                                style={[
+                                  styles.modalScheduleTimeText,
+                                  { color: dark ? '#ffffff' : '#0f172a' },
+                                ]}
+                              >
+                                {timeString}
+                              </Text>
+                            </View>
+
+                            {/* Right: Venue */}
+                            <View style={styles.modalScheduleRight}>
+                              <View
+                                style={[
+                                  styles.modalScheduleIconBox,
+                                  {
+                                    backgroundColor: dark
+                                      ? 'rgba(217,119,6,0.22)'
+                                      : 'rgba(217,119,6,0.14)',
+                                    borderColor: 'rgba(217,119,6,0.30)',
+                                  },
+                                ]}
+                              >
+                                <NativeIcon name="map-pin" size={13} color="#d97706" strokeWidth={2.6} />
+                              </View>
+                              <Text
+                                numberOfLines={1}
+                                style={[
+                                  styles.modalScheduleVenueText,
+                                  { color: dark ? '#cbd5e1' : '#334155' },
+                                ]}
+                              >
+                                {evt.venue_name || 'LPU Campus'}
+                              </Text>
+                            </View>
+                          </View>
+                        </Pressable>
+
+                        {/* 3D Optical Etched Glass Separator Line (Groove + Highlight) */}
+                        {!isLast && (
+                          <View style={styles.etchedDividerWrap}>
+                            <View
+                              style={[
+                                styles.etchedGroove,
+                                {
+                                  backgroundColor: dark
+                                    ? 'rgba(255,255,255,0.12)'
+                                    : 'rgba(15,23,42,0.10)',
+                                },
+                              ]}
+                            />
+                            <View
+                              style={[
+                                styles.etchedHighlight,
+                                {
+                                  backgroundColor: dark
+                                    ? 'rgba(255,255,255,0.03)'
+                                    : 'rgba(255,255,255,0.85)',
+                                },
+                              ]}
                             />
                           </View>
-                        </View>
-                      </View>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </ScrollView>
 
-                      {/* Row 2: Premium Schedule Strip (Time on Left, Venue on Right) */}
-                      <View style={styles.modalRow2}>
-                        {/* Left: Time */}
-                        <View style={styles.modalScheduleLeft}>
-                          <View
-                            style={[
-                              styles.modalScheduleIconBox,
-                              {
-                                backgroundColor: dark ? 'rgba(234,88,12,0.25)' : 'rgba(234,88,12,0.14)',
-                                borderColor: 'rgba(234,88,12,0.30)',
-                              },
-                            ]}
-                          >
-                            <NativeIcon name="clock" size={12} color="#ea580c" strokeWidth={2.5} />
-                          </View>
-                          <Text
-                            numberOfLines={1}
-                            style={[styles.modalScheduleTimeText, { color: dark ? '#ffffff' : '#0f172a' }]}
-                          >
-                            {timeString}
-                          </Text>
-                        </View>
-
-                        {/* Right: Venue */}
-                        <View style={styles.modalScheduleRight}>
-                          <View
-                            style={[
-                              styles.modalScheduleIconBox,
-                              {
-                                backgroundColor: dark ? 'rgba(217,119,6,0.25)' : 'rgba(217,119,6,0.14)',
-                                borderColor: 'rgba(217,119,6,0.30)',
-                              },
-                            ]}
-                          >
-                            <NativeIcon name="map-pin" size={12} color="#d97706" strokeWidth={2.5} />
-                          </View>
-                          <Text
-                            numberOfLines={1}
-                            style={[styles.modalScheduleVenueText, { color: dark ? '#cbd5e1' : '#334155' }]}
-                          >
-                            {evt.venue_name || 'LPU Campus'}
-                          </Text>
-                        </View>
-                      </View>
-                    </Pressable>
-
-                    {/* 3D Optical Etched Glass Separator Line (Groove + Highlight) */}
-                    {!isLast && (
-                      <View style={styles.etchedDividerWrap}>
-                        <View
-                          style={[
-                            styles.etchedGroove,
-                            { backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)' },
-                          ]}
-                        />
-                        <View
-                          style={[
-                            styles.etchedHighlight,
-                            { backgroundColor: dark ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.90)' },
-                          ]}
-                        />
-                      </View>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </ScrollView>
-
-            {/* Modal Footer */}
-            <View
-              style={[
-                styles.modalFooter,
-                {
-                  borderTopColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                },
-              ]}
-            >
-              <Pressable
-                onPress={() => setIsModalOpen(false)}
-                style={[
-                  styles.modalCloseFooterBtn,
-                  {
-                    backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)',
-                  },
-                ]}
-              >
-                <Text style={[styles.modalCloseFooterText, { color: palette.text }]}>Close</Text>
-              </Pressable>
+              {/* Bottom Subtle Optical Fade Overlay matching Student Website */}
+              <View pointerEvents="none" style={styles.modalBottomFade}>
+                <Svg width="100%" height={24}>
+                  <LinearGradient id="modalBottomFade" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <Stop offset="0%" stopColor={dark ? '#1c1c1e' : '#ffffff'} stopOpacity={0} />
+                    <Stop offset="100%" stopColor={dark ? '#1c1c1e' : '#ffffff'} stopOpacity={0.85} />
+                  </LinearGradient>
+                  <SvgRect width="100%" height={24} fill="url(#modalBottomFade)" />
+                </Svg>
+              </View>
             </View>
           </View>
         </View>
@@ -890,16 +964,35 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.60)',
   },
   modalSheet: {
     height: '62%',
-    maxHeight: '75%',
+    maxHeight: '78%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     borderWidth: 1,
     overflow: 'hidden',
+    position: 'relative',
     ...shadows.glass,
+  },
+  causticTopRight: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(249,115,22,0.12)',
+  },
+  causticBottomLeft: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(56,189,248,0.08)',
   },
   dragBarContainer: {
     paddingTop: 10,
@@ -916,7 +1009,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingTop: 6,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     gap: 12,
   },
@@ -925,27 +1019,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     flex: 1,
+    minWidth: 0,
   },
   modalCalendarIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     backgroundColor: '#ea580c',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#ea580c',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 6,
     elevation: 3,
   },
   modalHeaderTitles: {
     flex: 1,
+    minWidth: 0,
   },
   modalTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    minWidth: 0,
   },
   modalTitleText: {
     fontFamily: typography.headingFamily,
@@ -953,28 +1050,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -0.3,
   },
-  modalSubtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
   modalSubtitleDate: {
     fontSize: 11.5,
-    fontWeight: '700',
-  },
-  modalDotSeparator: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#94a3b8',
+    fontWeight: '600',
+    marginTop: 2,
   },
   modalLiveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
     borderRadius: radii.pill,
     borderWidth: 1,
   },
@@ -985,16 +1071,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#ea580c',
   },
   modalLiveBadgeText: {
-    color: '#ea580c',
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '900',
+    letterSpacing: -0.1,
+    fontFamily: typography.headingFamily,
   },
   modalCloseButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalListWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   modalList: {
     flex: 1,
@@ -1002,7 +1094,36 @@ const styles = StyleSheet.create({
   modalListContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 28,
+  },
+  modalEmptyState: {
+    paddingVertical: 48,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyStateTitle: {
+    fontFamily: typography.headingFamily,
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  emptyStateSubtitle: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
   },
   modalItemPressable: {
     paddingVertical: 12,
@@ -1011,59 +1132,33 @@ const styles = StyleSheet.create({
   },
   modalRow1: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 12,
+    marginBottom: 8,
   },
   modalItemTitle: {
     flex: 1,
     fontFamily: typography.headingFamily,
-    fontSize: 14.5,
+    fontSize: 16,
     fontWeight: '900',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+    lineHeight: 22,
   },
-  modalRow1Right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
-  },
-  modalCategoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-  },
-  modalCategoryDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#ea580c',
-  },
-  modalCategoryBadgeText: {
-    fontSize: 9.5,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-    fontFamily: typography.headingFamily,
-    textTransform: 'uppercase',
-  },
-  modalChevronCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1,
+  modalArrowBox: {
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
+    flexShrink: 0,
   },
   modalRow2: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 8,
+    paddingTop: 2,
   },
   modalScheduleLeft: {
     flexDirection: 'row',
@@ -1086,15 +1181,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   modalScheduleTimeText: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '800',
     fontFamily: typography.headingFamily,
     letterSpacing: -0.2,
   },
   modalScheduleVenueText: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
     fontFamily: typography.headingFamily,
   },
@@ -1111,18 +1207,12 @@ const styles = StyleSheet.create({
     height: 1,
     width: '100%',
   },
-  modalFooter: {
-    padding: 14,
-    borderTopWidth: 1,
-  },
-  modalCloseFooterBtn: {
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCloseFooterText: {
-    fontSize: 13,
-    fontWeight: '900',
+  modalBottomFade: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 24,
+    zIndex: 20,
   },
 });

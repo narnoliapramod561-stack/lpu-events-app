@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radii, spacing, typography } from '../design/tokens';
+import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { NativeIcon } from './NativeIcon';
 import { LpuEventsLogo } from './LpuEventsLogo';
 import { openMailtoUrl } from '../utils/externalLinks';
+import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
 
 type InfoPageKind = 'about' | 'contact' | 'privacy' | 'terms';
 
@@ -81,10 +82,13 @@ export function InfoPage({ kind, dark }: { kind: InfoPageKind; dark: boolean }) 
           ].map(([label, address]) => <Pressable key={address} style={styles.contactRow} onPress={() => openMail(address, 'LPU Events inquiry')}><Text style={[styles.caption, { color: palette.mutedText }]}>{label}</Text><Text style={[styles.link, { color: palette.primary }]}>{address}</Text></Pressable>)}
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Send a message</Text>
           {submitted ? <Text style={[styles.body, { color: '#16a34a' }]}>Your message has been prepared in your mail client.</Text> : <>
-            <TextInput value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={palette.mutedText} style={[styles.input, { color: palette.text, borderColor: palette.outline }]} />
-            <TextInput value={email} onChangeText={setEmail} placeholder="Email" keyboardType="email-address" placeholderTextColor={palette.mutedText} style={[styles.input, { color: palette.text, borderColor: palette.outline }]} />
-            <TextInput value={message} onChangeText={setMessage} placeholder="Message" multiline placeholderTextColor={palette.mutedText} style={[styles.input, styles.message, { color: palette.text, borderColor: palette.outline }]} />
-            <Pressable style={[styles.button, { backgroundColor: palette.primary }]} onPress={() => { if (!name.trim() || !email.trim() || !message.trim()) return; void openMail('contact@lpuevents.live', `[LPU Events Inquiry] from ${name}`, `Name: ${name}\nEmail: ${email}\n\n${message}`).then((opened) => { if (opened) setSubmitted(true); }); }}><Text style={styles.buttonText}>Prepare Email</Text></Pressable>
+            <TextInput value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={palette.mutedText} style={[styles.input, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1.5 }]} />
+            <TextInput value={email} onChangeText={setEmail} placeholder="Email" keyboardType="email-address" placeholderTextColor={palette.mutedText} style={[styles.input, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1.5 }]} />
+            <TextInput value={message} onChangeText={setMessage} placeholder="Message" multiline placeholderTextColor={palette.mutedText} style={[styles.input, styles.message, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1.5 }]} />
+            <Pressable style={[styles.button, { backgroundColor: palette.primary, overflow: 'hidden' }]} onPress={() => { if (!name.trim() || !email.trim() || !message.trim()) return; void openMail('contact@lpuevents.live', `[LPU Events Inquiry] from ${name}`, `Name: ${name}\nEmail: ${email}\n\n${message}`).then((opened) => { if (opened) setSubmitted(true); }); }}>
+              <SpecularTopRim dark={dark} height={1} />
+              <Text style={styles.buttonText}>Prepare Email</Text>
+            </Pressable>
           </>}
         </Card>
       </PageShell>
@@ -98,35 +102,103 @@ export function InfoPage({ kind, dark }: { kind: InfoPageKind; dark: boolean }) 
 function PageShell({ dark, title, children }: { dark: boolean; title: string; children: React.ReactNode }) {
   const palette = dark ? colors.dark : colors.light;
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/'); };
-  return <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: palette.background }}><ScrollView contentContainerStyle={styles.container}><View style={styles.topbar}><Pressable onPress={goBack} style={styles.back}><NativeIcon name="arrow-left" size={17} color={palette.text} /><Text style={[styles.backText, { color: palette.text }]}>Back to Events</Text></Pressable><Text style={[styles.eyebrow, { color: palette.mutedText }]}>{title}</Text></View>{children}</ScrollView></SafeAreaView>;
+  return (
+    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: palette.background }}>
+      <ImageBackground
+        source={require('../../assets/lpu-events-campus-glass-background.webp')}
+        resizeMode="cover"
+        style={StyleSheet.absoluteFill}
+      >
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: dark ? 'rgba(14,14,18,0.65)' : 'rgba(244,247,251,0.06)' },
+          ]}
+        />
+      </ImageBackground>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.topbar}>
+          <Pressable
+            onPress={goBack}
+            style={[
+              styles.back,
+              {
+                backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
+                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+                borderWidth: 1.5,
+              },
+            ]}
+          >
+            <SpecularTopRim dark={dark} height={1} />
+            <NativeIcon name="arrow-left" size={17} color={palette.text} />
+            <Text style={[styles.backText, { color: palette.text }]}>Back to Events</Text>
+          </Pressable>
+          <Text style={[styles.eyebrow, { color: palette.mutedText }]}>{title}</Text>
+        </View>
+        {children}
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 function Header({ dark, eyebrow, title, description }: { dark: boolean; eyebrow: string; title: string; description: string }) {
   const palette = dark ? colors.dark : colors.light;
-  return <View style={[styles.header, { backgroundColor: palette.surface, borderColor: palette.outline }]}><LpuEventsLogo size={54} /><Text style={[styles.eyebrow, { color: palette.primary }]}>{eyebrow}</Text><Text style={[styles.title, { color: palette.text }]}>{title}</Text><Text style={[styles.body, { color: palette.mutedText }]}>{description}</Text></View>;
+  return (
+    <View
+      style={[
+        styles.header,
+        {
+          backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
+          borderColor: dark ? glass.dark.border : glass.light.border,
+          borderWidth: 1.5,
+        },
+      ]}
+    >
+      <SpecularTopRim dark={dark} height={1.5} />
+      <GlassSheen dark={dark} />
+      <LpuEventsLogo size={54} />
+      <Text style={[styles.eyebrow, { color: palette.primary }]}>{eyebrow}</Text>
+      <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
+      <Text style={[styles.body, { color: palette.mutedText }]}>{description}</Text>
+    </View>
+  );
 }
 
 function Card({ dark, children }: { dark: boolean; children: React.ReactNode }) {
-  const palette = dark ? colors.dark : colors.light;
-  return <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.outline }]}>{children}</View>;
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
+          borderColor: dark ? glass.dark.border : glass.light.border,
+          borderWidth: 1.5,
+        },
+      ]}
+    >
+      <SpecularTopRim dark={dark} height={1.5} />
+      <GlassSheen dark={dark} />
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   container: { padding: spacing.gutter, paddingBottom: spacing.xxl, gap: spacing.md },
   topbar: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  back: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.sm },
+  back: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: 14, paddingVertical: spacing.sm, borderRadius: radii.pill, overflow: 'hidden', position: 'relative' },
   backText: { fontFamily: typography.fontFamily, fontWeight: '800', fontSize: 13 },
   eyebrow: { fontFamily: typography.headingFamily, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
-  header: { borderWidth: 1, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.xs },
+  header: { borderRadius: radii.xl, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.xs, overflow: 'hidden', position: 'relative', ...shadows.glass },
   title: { fontFamily: typography.headingFamily, fontSize: 28, lineHeight: 34, fontWeight: '900' },
-  card: { borderWidth: 1, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm },
+  card: { borderRadius: radii.xl, padding: spacing.lg, gap: spacing.sm, overflow: 'hidden', position: 'relative', ...shadows.glass },
   sectionTitle: { fontFamily: typography.headingFamily, fontSize: 17, fontWeight: '900' },
   body: { fontFamily: typography.fontFamily, fontSize: 14, lineHeight: 22 },
   caption: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
   link: { fontSize: 14, fontWeight: '800' },
   contactRow: { paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(148,163,184,0.22)' },
-  input: { minHeight: 44, borderWidth: 1, borderRadius: radii.sm, paddingHorizontal: spacing.md, fontSize: 14 },
+  input: { minHeight: 44, borderRadius: radii.sm, paddingHorizontal: spacing.md, fontSize: 14 },
   message: { minHeight: 110, paddingTop: spacing.md, textAlignVertical: 'top' },
-  button: { minHeight: 46, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs },
+  button: { minHeight: 46, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs, position: 'relative' },
   buttonText: { color: '#fff', fontWeight: '900', fontSize: 14 },
 });

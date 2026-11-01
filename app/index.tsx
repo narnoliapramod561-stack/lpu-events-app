@@ -21,7 +21,7 @@ import { EventHub } from '../src/components/EventHub';
 import { NativeFooter } from '../src/components/NativeFooter';
 import { MaintenanceView } from '../src/components/MaintenanceView';
 import { SiteNoticeBanner } from '../src/components/SiteNoticeBanner';
-import { colors, radii, spacing } from '../src/design/tokens';
+import { colors, glass, radii, spacing } from '../src/design/tokens';
 import { PublicApiClient } from '../src/api/publicApi';
 import type { EventFeedItem, HomepageBundle } from '../src/api/types';
 import {
@@ -29,38 +29,35 @@ import {
   settingValue,
 } from '../src/features/homepageModels';
 import { useTheme } from '../src/theme/ThemeContext';
-import type { TimelineFilter } from '../src/features/eventHub';
+import { isEventToday, type TimelineFilter } from '../src/features/eventHub';
 
 const api = new PublicApiClient();
 
-const toLocalDateString = (input?: string | Date | null) => {
-  if (!input) return '';
-  const d = typeof input === 'string' ? new Date(input) : input;
-  if (Number.isNaN(d.getTime())) return '';
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const isToday = (event: EventFeedItem, now = new Date()) => {
-  if (!event.start_at) return false;
-  const todayStr = toLocalDateString(now);
-  const startStr = toLocalDateString(event.start_at);
-  if (!startStr) return false;
-  const endStr = event.end_at ? toLocalDateString(event.end_at) : startStr;
-  return startStr === todayStr || (todayStr >= startStr && todayStr <= endStr);
-};
-
 function Skeleton({ dark }: { dark: boolean }) {
-  const palette = dark ? colors.dark : colors.light;
+  const g = dark ? glass.dark : glass.light;
   return (
     <View style={styles.skeletonGroup}>
-      <View style={[styles.skeletonHero, { backgroundColor: palette.surface2 }]} />
-      <View style={[styles.skeletonTitle, { backgroundColor: palette.surface2 }]} />
+      <View
+        style={[
+          styles.skeletonHero,
+          { backgroundColor: g.panelBg, borderColor: g.border, borderWidth: 1 },
+        ]}
+      />
+      <View
+        style={[
+          styles.skeletonTitle,
+          { backgroundColor: g.pillBg, borderColor: g.pillBorder, borderWidth: 1 },
+        ]}
+      />
       <View style={styles.skeletonRow}>
         {[0, 1].map((item) => (
-          <View key={item} style={[styles.skeletonCard, { backgroundColor: palette.surface2 }]} />
+          <View
+            key={item}
+            style={[
+              styles.skeletonCard,
+              { backgroundColor: g.cardBg, borderColor: g.border, borderWidth: 1 },
+            ]}
+          />
         ))}
       </View>
     </View>
@@ -80,6 +77,7 @@ export default function HomeScreen() {
   const [isSplashVisible, setSplashVisible] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
   const blurTarget = useRef<View | null>(null);
+  const [blurTargetReady, setBlurTargetReady] = useState(false);
   const palette = dark ? colors.dark : colors.light;
 
   const loadHomepage = useCallback(async (forceRefresh = false) => {
@@ -152,17 +150,20 @@ export default function HomeScreen() {
     [bundle?.featured],
   );
 
-  const todayEvents = useMemo(
-    () =>
-      (bundle?.events ?? []).filter(
-        (event) =>
-          event.status !== 'CANCELLED' &&
-          event.status !== 'DELETED' &&
-          !event.deleted_at &&
-          isToday(event),
-      ),
-    [bundle?.events],
-  );
+  const todayEvents = useMemo(() => {
+    const published = (bundle?.events ?? []).filter(
+      (event) =>
+        event &&
+        event.status === 'PUBLISHED' &&
+        !event.deleted_at &&
+        isEventToday(event.start_at, event.end_at),
+    );
+    return published.slice().sort((a, b) => {
+      const aTime = a.start_at ? new Date(a.start_at).getTime() : 0;
+      const bTime = b.start_at ? new Date(b.start_at).getTime() : 0;
+      return aTime - bTime;
+    });
+  }, [bundle?.events]);
 
   const carouselItems = useMemo(
     () => normalizeCarouselItems(bundle?.carousel),
@@ -209,7 +210,11 @@ export default function HomeScreen() {
       edges={['top', 'bottom']}
     >
       <View style={styles.page}>
-        <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
+        <BlurTargetView
+          ref={blurTarget}
+          onLayout={() => setBlurTargetReady(true)}
+          style={StyleSheet.absoluteFill}
+        >
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
             <ImageBackground
               source={require('../assets/lpu-events-campus-glass-background.webp')}
@@ -248,7 +253,7 @@ export default function HomeScreen() {
               <View
                 style={[
                   styles.error,
-                  { backgroundColor: palette.surface, borderColor: palette.outline },
+                  { backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg, borderColor: dark ? glass.dark.border : glass.light.border },
                 ]}
               >
                 <Text style={[styles.errorTitle, { color: palette.text }]}>
@@ -310,7 +315,16 @@ export default function HomeScreen() {
             !featuredEvents.length &&
             !todayEvents.length &&
             !bundle.events.length ? (
-              <View style={[styles.empty, { backgroundColor: palette.surface }]}>
+              <View
+                style={[
+                  styles.empty,
+                  {
+                    backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
+                    borderColor: dark ? glass.dark.border : glass.light.border,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
                 <Text style={[styles.emptyTitle, { color: palette.text }]}>No events available</Text>
                 <Text style={{ color: palette.mutedText }}>
                   Check back soon for new campus events.
@@ -321,6 +335,7 @@ export default function HomeScreen() {
         </BlurTargetView>
 
         <HomeHeader
+          key={`header-${blurTargetReady ? 'ready' : 'init'}-${dark ? 'dark' : 'light'}`}
           style={styles.fixedHeader}
           blurTarget={blurTarget}
           dark={dark}

@@ -1,7 +1,9 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { radii, shadows, spacing, typography } from '../design/tokens';
+import { BlurView } from 'expo-blur';
+import { glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { NativeIcon } from './NativeIcon';
+import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
 
 interface BookingDisclaimerModalProps {
   visible: boolean;
@@ -42,12 +44,33 @@ export function BookingDisclaimerModal({
           style={[
             styles.dialog,
             {
-              backgroundColor: dark ? '#222228' : '#ffffff',
-              borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+              backgroundColor: 'transparent',
+              borderColor: dark ? glass.dark.border : glass.light.border,
+              borderWidth: 1.5,
             },
           ]}
           onPress={(e) => e.stopPropagation()}
         >
+          {/* Hardware Glass Blur Backdrop */}
+          <BlurView
+            pointerEvents="none"
+            intensity={dark ? 75 : 90}
+            tint={dark ? 'dark' : 'light'}
+            blurMethod="none"
+            style={StyleSheet.absoluteFill}
+          />
+
+          {/* Translucent Frosted Tint Overlay */}
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: dark ? glass.dark.modalBg : glass.light.modalBg },
+            ]}
+          />
+
+          <SpecularTopRim dark={dark} height={1.5} />
+          <GlassSheen dark={dark} />
           {/* Close button */}
           <Pressable onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close dialog">
             <NativeIcon name="x" size={16} color={dark ? '#cbd5e1' : '#64748b'} />
@@ -165,6 +188,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 22,
     position: 'relative',
+    overflow: 'hidden',
     ...shadows.glass,
   },
   closeBtn: {

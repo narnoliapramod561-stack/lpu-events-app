@@ -15,7 +15,8 @@ import { router } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LpuEventsLogo } from './LpuEventsLogo';
 import { NativeIcon } from './NativeIcon';
-import { colors, radii, shadows, spacing, typography } from '../design/tokens';
+import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
+import { SpecularTopRim } from './ui/NativeGlass';
 import type { EventFeedItem } from '../api/types';
 
 interface HomeHeaderProps {
@@ -90,15 +91,36 @@ function HomeHeaderComponent({
   };
 
   return (
-    <View style={[styles.shell, style]}>
+    <View
+      style={[
+        styles.shell,
+        {
+          backgroundColor: 'transparent',
+          borderBottomColor: dark ? glass.dark.border : glass.light.border,
+          borderBottomWidth: 1.5,
+        },
+        style,
+      ]}
+    >
       <BlurView
         pointerEvents="none"
-        intensity={64}
-        tint="default"
-        blurMethod="dimezisBlurViewSdk31Plus"
+        intensity={dark ? 70 : 85}
+        tint={dark ? 'dark' : 'light'}
+        blurMethod={blurTarget?.current ? 'dimezisBlurViewSdk31Plus' : 'none'}
         blurTarget={blurTarget}
         style={StyleSheet.absoluteFill}
       />
+      {/* Translucent Frosted Tint Overlay — sits on top of BlurView for optimal contrast */}
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            backgroundColor: dark ? glass.dark.headerBg : glass.light.headerBg,
+          },
+        ]}
+      />
+      <SpecularTopRim dark={dark} height={1.5} />
       <View style={styles.row}>
         {/* Brand with University Logo */}
         <Pressable
@@ -122,7 +144,18 @@ function HomeHeaderComponent({
             onPress={() => setSearchOpen((open) => !open)}
             style={[
               styles.iconButton,
-              searchOpen && { backgroundColor: '#ff6b00', borderColor: '#ff6b00' },
+              {
+                backgroundColor: searchOpen
+                  ? '#ff6b00'
+                  : dark
+                  ? glass.dark.pillBg
+                  : glass.light.pillBg,
+                borderColor: searchOpen
+                  ? '#ff6b00'
+                  : dark
+                  ? glass.dark.pillBorder
+                  : glass.light.pillBorder,
+              },
             ]}
           >
             <NativeIcon
@@ -135,14 +168,26 @@ function HomeHeaderComponent({
             accessibilityRole="button"
             accessibilityLabel="Toggle light and dark mode"
             onPress={onToggleTheme}
-            style={styles.iconButton}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
+                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+              },
+            ]}
           >
             <NativeIcon name={dark ? 'sun' : 'moon'} size={18} color={palette.text} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open menu"
-            style={styles.iconButton}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
+                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
+              },
+            ]}
             onPress={() => setMenuOpen(true)}
           >
             <NativeIcon name="menu" size={19} color={palette.text} />
@@ -157,8 +202,8 @@ function HomeHeaderComponent({
             style={[
               styles.searchInputWrap,
               {
-                backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.92)',
-                borderColor: palette.outline,
+                backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)',
+                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
               },
             ]}
           >
@@ -189,11 +234,28 @@ function HomeHeaderComponent({
               style={[
                 styles.autocompleteBox,
                 {
-                  backgroundColor: dark ? '#222228' : '#ffffff',
-                  borderColor: palette.outline,
+                  backgroundColor: 'transparent',
+                  borderColor: dark ? glass.dark.border : glass.light.border,
+                  borderWidth: 1.5,
                 },
               ]}
             >
+              <BlurView
+                pointerEvents="none"
+                intensity={dark ? 65 : 85}
+                tint={dark ? 'dark' : 'light'}
+                blurMethod={blurTarget?.current ? 'dimezisBlurViewSdk31Plus' : 'none'}
+                blurTarget={blurTarget}
+                style={StyleSheet.absoluteFill}
+              />
+              <View
+                pointerEvents="none"
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg },
+                ]}
+              />
+              <SpecularTopRim dark={dark} height={1.2} />
               <View style={styles.autocompleteHeader}>
                 <View style={styles.suggestPulseRow}>
                   <View style={styles.greenPulseDot} />
@@ -244,12 +306,29 @@ function HomeHeaderComponent({
             style={[
               styles.menu,
               {
-                backgroundColor: dark ? 'rgba(24,24,30,0.96)' : 'rgba(255,255,255,0.96)',
-                borderColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
+                backgroundColor: 'transparent',
+                borderColor: dark ? glass.dark.border : glass.light.border,
+                borderBottomWidth: 1.5,
+                overflow: 'hidden',
               },
             ]}
             onPress={(e) => e.stopPropagation()}
           >
+            <BlurView
+              pointerEvents="none"
+              intensity={dark ? 75 : 90}
+              tint={dark ? 'dark' : 'light'}
+              blurMethod="none"
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg },
+              ]}
+            />
+            <SpecularTopRim dark={dark} height={1.5} />
             <View style={styles.menuTop}>
               <View style={styles.menuBrand}>
                 <LpuEventsLogo size={32} />

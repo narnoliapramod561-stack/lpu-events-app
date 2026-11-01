@@ -18,6 +18,7 @@ import type { EventFeedItem, NativeCarouselItem } from '../api/types';
 import { radii, shadows, spacing, typography } from '../design/tokens';
 import { eventImageSource, mediaUrl } from '../features/homepageModels';
 import { NativeIcon } from './NativeIcon';
+import { SpecularTopRim } from './ui/NativeGlass';
 
 interface NativeHeroCarouselProps {
   items: NativeCarouselItem[];
@@ -225,6 +226,7 @@ function NativeHeroCarouselComponent({
                 },
               ]}
             >
+              <SpecularTopRim dark={dark} height={1.5} />
               {item.image ? (
                 <>
                   {/* Ambient Refractive Blurred Backdrop */}
