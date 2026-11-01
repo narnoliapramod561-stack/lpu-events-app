@@ -7,7 +7,8 @@ export type IconName =
   | 'arrow-left' | 'external-link' | 'share' | 'search' | 'sun' | 'moon' | 'menu'
   | 'home' | 'users' | 'info' | 'mail' | 'copy' | 'check' | 'x' | 'refresh'
   | 'shield-alert' | 'shield-check' | 'qrcode' | 'whatsapp' | 'award' | 'briefcase'
-  | 'graduation-cap' | 'heart' | 'lightbulb' | 'chevron-left' | 'chevron-right' | 'arrow-up-right';
+  | 'graduation-cap' | 'heart' | 'lightbulb' | 'chevron-left' | 'chevron-right' | 'arrow-up-right'
+  | 'book-open' | 'flag' | 'shield' | 'hand-heart' | 'shirt' | 'more-horizontal' | 'layers';
 
 export function NativeIcon({ name, size = 16, color = '#0f172a', strokeWidth = 2 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   const common = { stroke: color, strokeWidth, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' as const };
@@ -50,6 +51,13 @@ export function NativeIcon({ name, size = 16, color = '#0f172a', strokeWidth = 2
       case 'lightbulb': return <><Path {...common} d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /><Path {...common} d="M9 18h6" /><Path {...common} d="M10 22h4" /></>;
       case 'chevron-left': return <Polyline {...common} points="15 18 9 12 15 6" />;
       case 'chevron-right': return <Polyline {...common} points="9 18 15 12 9 6" />;
+      case 'book-open': return <><Path {...common} d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><Path {...common} d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></>;
+      case 'flag': return <><Path {...common} d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><Line {...common} x1="4" y1="22" x2="4" y2="15" /></>;
+      case 'shield': return <Path {...common} d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />;
+      case 'hand-heart': return <><Path {...common} d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16" /><Path {...common} d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9" /><Path {...common} d="m2 15 6 6" /><Path {...common} d="M19.5 8.5c.7-.7 1.5-1.5 1.5-2.5A2.5 2.5 0 0 0 18.5 3.5c-1.2 0-2 .8-2.5 1.5-.5-.7-1.3-1.5-2.5-1.5A2.5 2.5 0 0 0 11 6c0 1 .8 1.8 1.5 2.5l3.5 3.5Z" /></>;
+      case 'shirt': return <Path {...common} d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />;
+      case 'more-horizontal': return <><Circle {...common} cx="12" cy="12" r="1.5" /><Circle {...common} cx="19" cy="12" r="1.5" /><Circle {...common} cx="5" cy="12" r="1.5" /></>;
+      case 'layers': return <><Path {...common} d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><Path {...common} d="m22 12.5-8.58 3.91a2 2 0 0 1-1.66 0L3.18 12.5" /><Path {...common} d="m22 17.5-8.58 3.91a2 2 0 0 1-1.66 0L3.18 17.5" /></>;
     }
   })();
   return <Svg width={size} height={size} viewBox="0 0 24 24">{content}</Svg>;

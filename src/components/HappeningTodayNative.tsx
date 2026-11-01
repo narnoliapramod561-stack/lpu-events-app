@@ -14,6 +14,7 @@ import Svg, { LinearGradient, Rect as SvgRect, Stop } from 'react-native-svg';
 import type { EventFeedItem } from '../api/types';
 import { colors, radii, shadows, spacing, typography } from '../design/tokens';
 import { eventImageSource } from '../features/homepageModels';
+import { formatEventTime as formatTime } from '../features/eventHub';
 import { NativeIcon } from './NativeIcon';
 
 interface HappeningTodayNativeProps {
@@ -25,10 +26,7 @@ interface HappeningTodayNativeProps {
 
 const formatEventTime = (dateStr?: string) => {
   if (!dateStr) return 'Time TBA';
-  const start = new Date(dateStr);
-  return Number.isNaN(start.getTime())
-    ? 'Time TBA'
-    : start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return formatTime(dateStr) || 'Time TBA';
 };
 
 const formatTodayDate = () => {
@@ -446,103 +444,141 @@ function HappeningTodayNativeComponent({
               contentContainerStyle={styles.modalListContent}
               showsVerticalScrollIndicator={false}
             >
-              {events.map((evt) => {
-                const eventImg = eventImageSource(evt);
+              {events.map((evt, idx) => {
+                const isLast = idx === events.length - 1;
+                const categoryName = (evt.categories?.name || evt.category_id || 'CAMPUS EVENT').toUpperCase();
                 const timeString = formatEventTime(evt.start_at);
 
                 return (
-                  <Pressable
-                    key={evt.id}
-                    onPress={() => {
-                      setIsModalOpen(false);
-                      onSelectEvent(evt.id);
-                    }}
-                    style={[
-                      styles.modalItemRow,
-                      {
-                        backgroundColor: dark
-                          ? 'rgba(255,255,255,0.04)'
-                          : 'rgba(255,255,255,0.70)',
-                        borderColor: dark
-                          ? 'rgba(255,255,255,0.08)'
-                          : 'rgba(0,0,0,0.06)',
-                      },
-                    ]}
-                  >
-                    {/* Thumbnail with LIVE red pill */}
-                    <View style={styles.modalItemThumb}>
-                      {eventImg ? (
-                        <Image source={eventImg} resizeMode="cover" style={styles.modalThumbImage} />
-                      ) : (
-                        <View style={styles.imageFallback} />
-                      )}
-                      <View style={styles.liveRedPill}>
-                        <View style={styles.liveRedDot} />
-                        <Text style={styles.liveRedText}>LIVE</Text>
-                      </View>
-                    </View>
-
-                    {/* Details: Title, Time, Location */}
-                    <View style={styles.modalItemDetails}>
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.modalItemTitle,
-                          { color: dark ? '#ffffff' : '#0f172a' },
-                        ]}
-                      >
-                        {evt.name}
-                      </Text>
-                      <View style={styles.modalMetaLine}>
-                        <NativeIcon name="clock" size={12} color="#ea580c" strokeWidth={2.4} />
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.modalMetaLineText,
-                            { color: dark ? '#f1f5f9' : '#1e293b' },
-                          ]}
-                        >
-                          {timeString}
-                        </Text>
-                      </View>
-                      {evt.venue_name ? (
-                        <View style={styles.modalMetaLine}>
-                          <NativeIcon name="map-pin" size={12} color="#d97706" strokeWidth={2.4} />
-                          <Text
-                            numberOfLines={1}
-                            style={[
-                              styles.modalMetaLineText,
-                              { color: dark ? '#94a3b8' : '#64748b' },
-                            ]}
-                          >
-                            {evt.venue_name}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-
-                    {/* Chevron Affordance */}
-                    <View
-                      style={[
-                        styles.modalChevronCircle,
+                  <React.Fragment key={evt.id || idx}>
+                    <Pressable
+                      onPress={() => {
+                        setIsModalOpen(false);
+                        onSelectEvent(evt.id);
+                      }}
+                      style={({ pressed }) => [
+                        styles.modalItemPressable,
                         {
-                          backgroundColor: dark
-                            ? 'rgba(255,255,255,0.10)'
-                            : 'rgba(255,255,255,0.80)',
-                          borderColor: dark
-                            ? 'rgba(255,255,255,0.15)'
-                            : 'rgba(255,255,255,0.90)',
+                          backgroundColor: pressed
+                            ? (dark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)')
+                            : 'transparent',
                         },
                       ]}
                     >
-                      <NativeIcon
-                        name="chevron-right"
-                        size={14}
-                        strokeWidth={2.5}
-                        color={dark ? '#f1f5f9' : '#334155'}
-                      />
-                    </View>
-                  </Pressable>
+                      {/* Row 1: Event Name on Left + Category Jewel Badge on Right + Apple-style Chevron */}
+                      <View style={styles.modalRow1}>
+                        <Text
+                          numberOfLines={1}
+                          style={[styles.modalItemTitle, { color: dark ? '#ffffff' : '#0f172a' }]}
+                        >
+                          {evt.name}
+                        </Text>
+
+                        <View style={styles.modalRow1Right}>
+                          <View
+                            style={[
+                              styles.modalCategoryBadge,
+                              {
+                                backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(15,23,42,0.06)',
+                                borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.10)',
+                              },
+                            ]}
+                          >
+                            <View style={styles.modalCategoryDot} />
+                            <Text
+                              numberOfLines={1}
+                              style={[
+                                styles.modalCategoryBadgeText,
+                                { color: dark ? '#f1f5f9' : '#1e293b' },
+                              ]}
+                            >
+                              {categoryName}
+                            </Text>
+                          </View>
+
+                          <View
+                            style={[
+                              styles.modalChevronCircle,
+                              {
+                                backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.75)',
+                                borderColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
+                              },
+                            ]}
+                          >
+                            <NativeIcon
+                              name="chevron-right"
+                              size={13}
+                              strokeWidth={2.4}
+                              color={dark ? '#f1f5f9' : '#334155'}
+                            />
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Row 2: Premium Schedule Strip (Time on Left, Venue on Right) */}
+                      <View style={styles.modalRow2}>
+                        {/* Left: Time */}
+                        <View style={styles.modalScheduleLeft}>
+                          <View
+                            style={[
+                              styles.modalScheduleIconBox,
+                              {
+                                backgroundColor: dark ? 'rgba(234,88,12,0.25)' : 'rgba(234,88,12,0.14)',
+                                borderColor: 'rgba(234,88,12,0.30)',
+                              },
+                            ]}
+                          >
+                            <NativeIcon name="clock" size={12} color="#ea580c" strokeWidth={2.5} />
+                          </View>
+                          <Text
+                            numberOfLines={1}
+                            style={[styles.modalScheduleTimeText, { color: dark ? '#ffffff' : '#0f172a' }]}
+                          >
+                            {timeString}
+                          </Text>
+                        </View>
+
+                        {/* Right: Venue */}
+                        <View style={styles.modalScheduleRight}>
+                          <View
+                            style={[
+                              styles.modalScheduleIconBox,
+                              {
+                                backgroundColor: dark ? 'rgba(217,119,6,0.25)' : 'rgba(217,119,6,0.14)',
+                                borderColor: 'rgba(217,119,6,0.30)',
+                              },
+                            ]}
+                          >
+                            <NativeIcon name="map-pin" size={12} color="#d97706" strokeWidth={2.5} />
+                          </View>
+                          <Text
+                            numberOfLines={1}
+                            style={[styles.modalScheduleVenueText, { color: dark ? '#cbd5e1' : '#334155' }]}
+                          >
+                            {evt.venue_name || 'LPU Campus'}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+
+                    {/* 3D Optical Etched Glass Separator Line (Groove + Highlight) */}
+                    {!isLast && (
+                      <View style={styles.etchedDividerWrap}>
+                        <View
+                          style={[
+                            styles.etchedGroove,
+                            { backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)' },
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.etchedHighlight,
+                            { backgroundColor: dark ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.90)' },
+                          ]}
+                        />
+                      </View>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </ScrollView>
@@ -857,9 +893,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.65)',
   },
   modalSheet: {
-    maxHeight: '88%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    height: '62%',
+    maxHeight: '75%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     borderWidth: 1,
     overflow: 'hidden',
     ...shadows.glass,
@@ -960,82 +997,119 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalList: {
-    flexGrow: 0,
+    flex: 1,
   },
   modalListContent: {
     paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  modalItemPressable: {
     paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+  },
+  modalRow1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 10,
   },
-  modalItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 10,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  modalItemThumb: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#0f172a',
-  },
-  modalThumbImage: {
-    width: '100%',
-    height: '100%',
-  },
-  liveRedPill: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(220,38,38,0.92)',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  liveRedDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#ffffff',
-  },
-  liveRedText: {
-    color: '#ffffff',
-    fontSize: 7.5,
-    fontWeight: '900',
-  },
-  modalItemDetails: {
-    flex: 1,
-    gap: 2,
-  },
   modalItemTitle: {
+    flex: 1,
     fontFamily: typography.headingFamily,
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '900',
     letterSpacing: -0.2,
   },
-  modalMetaLine: {
+  modalRow1Right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+  },
+  modalCategoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    borderWidth: 1,
   },
-  modalMetaLineText: {
-    fontSize: 11,
-    fontWeight: '700',
+  modalCategoryDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#ea580c',
+  },
+  modalCategoryBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    fontFamily: typography.headingFamily,
+    textTransform: 'uppercase',
   },
   modalChevronCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalRow2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalScheduleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
+  modalScheduleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'flex-end',
+  },
+  modalScheduleIconBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalScheduleTimeText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    fontFamily: typography.headingFamily,
+    letterSpacing: -0.2,
+  },
+  modalScheduleVenueText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    fontFamily: typography.headingFamily,
+  },
+  etchedDividerWrap: {
+    marginHorizontal: 8,
+    marginVertical: 4,
+    height: 2,
+  },
+  etchedGroove: {
+    height: 1,
+    width: '100%',
+  },
+  etchedHighlight: {
+    height: 1,
+    width: '100%',
   },
   modalFooter: {
     padding: 14,

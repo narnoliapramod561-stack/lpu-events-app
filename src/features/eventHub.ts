@@ -1,18 +1,124 @@
 import type { CategoryFeedItem, EventFeedItem } from '../api/types';
 
-export type TimelineFilter = 'all' | 'today' | 'tomorrow' | 'this_week' | 'date';
+export type TimelineFilter = 'all' | 'today' | 'tomorrow' | 'this_week' | 'upcoming' | 'date';
 export type PricingFilter = 'ALL' | 'FREE' | 'PAID';
 
-export const localDate = (date: Date): string => {
+export const localDate = (input?: string | Date | number | null): string => {
+  if (!input) return '';
+  const date = typeof input === 'string' || typeof input === 'number' ? new Date(input) : input;
+  if (Number.isNaN(date.getTime())) return '';
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
-const eventDate = (value: string): string => {
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '' : localDate(parsed);
+export const toLocalDateString = localDate;
+
+export const formatDisplayDate = (dateStr: string): string => {
+  if (!dateStr) return 'By Date';
+  const parsed = new Date(dateStr);
+  if (Number.isNaN(parsed.getTime())) return 'By Date';
+  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+export const isEventOnDate = (
+  startInput?: string | Date | number | null,
+  endInput?: string | Date | number | null,
+  targetDateStr?: string | null,
+): boolean => {
+  if (!startInput || !targetDateStr) return false;
+  const startStr = localDate(startInput);
+  if (!startStr) return false;
+  const endStr = endInput ? localDate(endInput) : startStr;
+  return startStr === targetDateStr || (targetDateStr >= startStr && targetDateStr <= endStr);
+};
+
+export const isEventToday = (
+  startInput?: string | Date | number | null,
+  endInput?: string | Date | number | null,
+  now = new Date(),
+): boolean => isEventOnDate(startInput, endInput, localDate(now));
+
+export const isEventTomorrow = (
+  startInput?: string | Date | number | null,
+  endInput?: string | Date | number | null,
+  now = new Date(),
+): boolean => {
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return isEventOnDate(startInput, endInput, localDate(tomorrow));
+};
+
+export const isEventThisWeek = (
+  startInput?: string | Date | number | null,
+  endInput?: string | Date | number | null,
+  now = new Date(),
+): boolean => {
+  if (!startInput) return false;
+  const start = new Date(startInput);
+  if (Number.isNaN(start.getTime())) return false;
+  const end = endInput ? new Date(endInput) : start;
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const day = now.getDay();
+  const daysUntilSunday = day === 0 ? 0 : 7 - day;
+  const endOfWeek = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + daysUntilSunday,
+    23,
+    59,
+    59,
+    999,
+  );
+  return start <= endOfWeek && end >= startOfWeek;
+};
+
+export const isEventThisWeekend = (
+  startInput?: string | Date | number | null,
+  endInput?: string | Date | number | null,
+  now = new Date(),
+): boolean => {
+  if (!startInput) return false;
+  const start = new Date(startInput);
+  if (Number.isNaN(start.getTime())) return false;
+  const end = endInput ? new Date(endInput) : start;
+  const day = now.getDay();
+  const daysUntilSat = day === 6 ? 0 : day === 0 ? -1 : 6 - day;
+  const startOfSat = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilSat, 0, 0, 0, 0);
+  const endOfSun = new Date(startOfSat.getFullYear(), startOfSat.getMonth(), startOfSat.getDate() + 1, 23, 59, 59, 999);
+  return start <= endOfSun && end >= startOfSat;
+};
+
+export const matchesScheduleFilter = (
+  event: { start_at: string; end_at?: string | null },
+  filterType: string = 'all',
+  customTargetDate?: string | null,
+  now = new Date(),
+): boolean => {
+  if (!event || !event.start_at) return false;
+  if (customTargetDate) {
+    return isEventOnDate(event.start_at, event.end_at, customTargetDate);
+  }
+  switch (filterType.toLowerCase()) {
+    case 'all':
+      return true;
+    case 'today':
+      return isEventToday(event.start_at, event.end_at, now);
+    case 'tomorrow':
+      return isEventTomorrow(event.start_at, event.end_at, now);
+    case 'this_week':
+      return isEventThisWeek(event.start_at, event.end_at, now);
+    case 'weekend':
+      return isEventThisWeekend(event.start_at, event.end_at, now);
+    case 'upcoming': {
+      const end = event.end_at ? new Date(event.end_at) : new Date(event.start_at);
+      return !Number.isNaN(end.getTime()) && end.getTime() >= now.getTime();
+    }
+    case 'date':
+      return true;
+    default:
+      return true;
+  }
 };
 
 export const eventMatchesTimeline = (
@@ -20,26 +126,7 @@ export const eventMatchesTimeline = (
   timeline: TimelineFilter,
   date: string,
   now = new Date(),
-): boolean => {
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrow = new Date(start);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const endOfWeek = new Date(start);
-  endOfWeek.setDate(endOfWeek.getDate() + (now.getDay() === 0 ? 0 : 7 - now.getDay()));
-  endOfWeek.setHours(23, 59, 59, 999);
-  const eventStart = new Date(event.start_at);
-  const eventEnd = new Date(event.end_at);
-  if (Number.isNaN(eventStart.getTime()) || Number.isNaN(eventEnd.getTime())) return false;
-  if (timeline === 'date') return eventDate(event.start_at) <= date && date <= eventDate(event.end_at);
-  if (timeline === 'today') return eventStart < tomorrow && eventEnd >= start;
-  if (timeline === 'tomorrow') {
-    const tomorrowEnd = new Date(tomorrow);
-    tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-    return eventStart < tomorrowEnd && eventEnd >= tomorrow;
-  }
-  if (timeline === 'this_week') return eventStart <= endOfWeek && eventEnd >= start;
-  return true;
-};
+): boolean => matchesScheduleFilter(event, timeline, date || null, now);
 
 export const sortUpcoming = (events: EventFeedItem[]): EventFeedItem[] =>
   [...events].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
@@ -54,6 +141,41 @@ export const formatEventDateRange = (startValue: string, endValue?: string | nul
   return start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth() && start.getDate() === end.getDate()
     ? format(start)
     : `${format(start)} – ${format(end)}`;
+};
+
+/**
+ * Formats a timestamp into a premium 12-hour format with exactly 4 digits: 'hh:mm AM/PM'
+ * (e.g., '03:00 PM', '09:05 AM', '12:00 PM', '12:00 AM').
+ */
+export const formatEventTime = (dateInput?: string | Date | number | null): string => {
+  if (!dateInput) return '';
+  const d = typeof dateInput === 'string' || typeof dateInput === 'number' ? new Date(dateInput) : dateInput;
+  if (Number.isNaN(d.getTime())) return '';
+  let hours = d.getHours();
+  const minutes = d.getMinutes();
+  const period = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  const hourStr = String(hours).padStart(2, '0');
+  const minuteStr = String(minutes).padStart(2, '0');
+  return `${hourStr}:${minuteStr} ${period}`;
+};
+
+/**
+ * Formats start and optional end time into premium 12-hour format:
+ * '03:00 PM' or '03:00 PM – 05:30 PM'
+ */
+export const formatEventTimeRange = (
+  startInput?: string | Date | number | null,
+  endInput?: string | Date | number | null,
+): string => {
+  if (!startInput) return '';
+  const startStr = formatEventTime(startInput);
+  if (!startStr) return '';
+  if (!endInput) return startStr;
+  const endStr = formatEventTime(endInput);
+  if (!endStr || endStr === startStr) return startStr;
+  return `${startStr} – ${endStr}`;
 };
 
 export const normalizeCategories = (value: unknown): CategoryFeedItem[] => {

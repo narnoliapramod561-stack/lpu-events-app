@@ -102,14 +102,39 @@ export class PublicApiClient {
     this.timeoutMs = options.timeoutMs ?? 12_000;
   }
 
-  private async requestOnce<T>(url: string, validate: (value: unknown) => value is T): Promise<ApiResult<T>> {
+  private async requestOnce<T>(
+    url: string,
+    validate: (value: unknown) => value is T,
+    etag?: string,
+    fallbackCachedData?: T,
+    forceRefresh = false
+  ): Promise<ApiResult<T> & { etag?: string; notModified?: boolean }> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
+      const headers: Record<string, string> = { Accept: 'application/json' };
+      if (etag) {
+        headers['If-None-Match'] = etag;
+      }
+      if (forceRefresh) {
+        headers['Cache-Control'] = 'no-cache';
+        headers['Pragma'] = 'no-cache';
+      }
+
       const response = await this.fetchFn(url, {
-        headers: { Accept: 'application/json' },
+        headers,
         signal: controller.signal,
       });
+
+      const responseEtag = response.headers.get('etag') || response.headers.get('x-cache-version') || undefined;
+
+      if (response.status === 304) {
+        if (fallbackCachedData !== undefined) {
+          return { data: fallbackCachedData, error: null, notModified: true, etag: responseEtag || etag, fromCache: true };
+        }
+        return { data: null, error: error('HTTP_ERROR', 'Received 304 without cached data.', { status: 304 }) };
+      }
+
       if (!response.ok) {
         const code = response.status === 503 ? 'MAINTENANCE' : 'HTTP_ERROR';
         return { data: null, error: error(code, code === 'MAINTENANCE' ? 'The event service is temporarily unavailable.' : `Public API request failed (${response.status}).`, { status: response.status, retryable: response.status >= 500 }) };
@@ -126,7 +151,7 @@ export class PublicApiClient {
         return { data: null, error: error('INVALID_RESPONSE', 'The public API returned malformed JSON.') };
       }
       return validate(payload)
-        ? { data: payload, error: null }
+        ? { data: payload, error: null, etag: responseEtag }
         : { data: null, error: error('INVALID_RESPONSE', 'The public API returned an unexpected data shape.') };
     } catch (cause) {
       const timedOut = cause instanceof Error && cause.name === 'AbortError';
@@ -136,11 +161,17 @@ export class PublicApiClient {
     }
   }
 
-  private async request<T>(url: string, validate: (value: unknown) => value is T): Promise<ApiResult<T>> {
-    let result = await this.requestOnce(url, validate);
+  private async request<T>(
+    url: string,
+    validate: (value: unknown) => value is T,
+    etag?: string,
+    fallbackCachedData?: T,
+    forceRefresh = false
+  ): Promise<ApiResult<T> & { etag?: string; notModified?: boolean }> {
+    let result = await this.requestOnce(url, validate, etag, fallbackCachedData, forceRefresh);
     if (result.error?.retryable) {
       await new Promise((resolve) => setTimeout(resolve, 150));
-      result = await this.requestOnce(url, validate);
+      result = await this.requestOnce(url, validate, etag, fallbackCachedData, forceRefresh);
     }
     return result;
   }
@@ -157,23 +188,27 @@ export class PublicApiClient {
     key: string,
     validate: (value: unknown) => value is T,
     ttlMs: number,
-    operation: () => Promise<ApiResult<T>>,
+    operation: () => Promise<ApiResult<T> & { etag?: string; notModified?: boolean }>,
     revision?: string,
+    forceRefresh = false
   ): Promise<ApiResult<T>> {
     const cached = await this.cache.read(key, validate, { allowStale: true, revision });
-    if (cached && !cached.stale) {
+    if (cached && !cached.stale && !forceRefresh) {
       return { data: cached.data, error: null, fromCache: true };
     }
-    const refresh = this.singleFlight(key, async () => {
+
+    const refresh = this.singleFlight(key, async (): Promise<ApiResult<T>> => {
       const result = await operation();
-      if (result.data !== null) {
-        await this.cache.write(key, result.data, ttlMs, ttlMs, revision);
-        return result;
+
+      if (result.error === null) {
+        await this.cache.write(key, result.data, ttlMs, ttlMs, result.etag || revision);
+        return { data: result.data, error: null, fromCache: result.fromCache, stale: result.stale, notModified: result.notModified };
       }
-      if (cached) return { data: cached.data, error: null, fromCache: true, stale: true };
-      return result;
+      if (cached && !forceRefresh) return { data: cached.data, error: null, fromCache: true, stale: true };
+      return { data: null, error: result.error, fromCache: result.fromCache, stale: result.stale };
     });
-    if (cached) {
+
+    if (cached && !forceRefresh) {
       void refresh;
       return { data: cached.data, error: null, fromCache: true, stale: true };
     }
@@ -185,8 +220,15 @@ export class PublicApiClient {
   }
 
   async getHomepage(forceRefresh = false): Promise<ApiResult<HomepageBundle>> {
-    if (forceRefresh) await this.cache.remove('homepage');
-    return this.cached('homepage', isHomepage, 30 * 60_000, () => this.request(this.apiUrl('homepage'), isHomepage));
+    const cached = await this.cache.read('homepage', isHomepage, { allowStale: true });
+    return this.cached(
+      'homepage',
+      isHomepage,
+      5 * 60_000,
+      () => this.request(this.apiUrl('homepage'), isHomepage, cached?.revision, cached?.data, forceRefresh),
+      undefined,
+      forceRefresh
+    );
   }
 
   async getEventFeed(filters: EventFeedFilters = {}, forceRefresh = false): Promise<ApiResult<EventFeedItem[]>> {
@@ -198,8 +240,15 @@ export class PublicApiClient {
     }
     if (filters.show_past) params.set('show_past', 'true');
     const key = `events:${params.toString()}`;
-    if (forceRefresh) await this.cache.remove(key);
-    return this.cached(key, isEventList, 60_000, () => this.request(`${this.apiUrl('events')}?${params}`, isEventList));
+    const cached = await this.cache.read(key, isEventList, { allowStale: true });
+    return this.cached(
+      key,
+      isEventList,
+      60_000,
+      () => this.request(`${this.apiUrl('events')}?${params}`, isEventList, cached?.revision, cached?.data, forceRefresh),
+      undefined,
+      forceRefresh
+    );
   }
 
   async searchEvents(query: string, options: EventFeedFilters & { event_name_only?: boolean } = {}): Promise<ApiResult<EventFeedItem[]>> {
@@ -210,14 +259,27 @@ export class PublicApiClient {
       if (options[key]) params.set(key, options[key]!);
     }
     if (options.event_name_only) params.set('event_name_only', 'true');
-    return this.cached(`search:${params.toString()}`, isEventList, 60_000, () => this.request(`${this.apiUrl('search')}?${params}`, isEventList));
+    const key = `search:${params.toString()}`;
+    const cached = await this.cache.read(key, isEventList, { allowStale: true });
+    return this.cached(
+      key,
+      isEventList,
+      60_000,
+      () => this.request(`${this.apiUrl('search')}?${params}`, isEventList, cached?.revision, cached?.data)
+    );
   }
 
   async getEventDetails(identifier: string): Promise<ApiResult<EventDetails>> {
     const clean = identifier.trim();
     if (!clean || !/^[a-zA-Z0-9_-]+$/.test(clean)) return { data: null, error: error('INVALID_ARGUMENT', 'A valid event identifier is required.') };
     const key = `detail:${clean}`;
-    return this.cached(key, isDetails, 120_000, () => this.request(this.apiUrl(`events/${encodeURIComponent(clean)}`), isDetails));
+    const cached = await this.cache.read(key, isDetails, { allowStale: true });
+    return this.cached(
+      key,
+      isDetails,
+      120_000,
+      () => this.request(this.apiUrl(`events/${encodeURIComponent(clean)}`), isDetails, cached?.revision, cached?.data)
+    );
   }
 
   async getSnapshotManifest(forceRefresh = false): Promise<ApiResult<SnapshotManifest>> {

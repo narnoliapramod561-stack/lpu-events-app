@@ -149,5 +149,5 @@ export interface PublicApiError {
 }
 
 export type ApiResult<T> =
-  | { data: T; error: null; fromCache?: boolean; stale?: boolean }
-  | { data: null; error: PublicApiError; fromCache?: boolean; stale?: boolean };
+  | { data: T; error: null; fromCache?: boolean; stale?: boolean; notModified?: boolean }
+  | { data: null; error: PublicApiError; fromCache?: boolean; stale?: boolean; notModified?: boolean };

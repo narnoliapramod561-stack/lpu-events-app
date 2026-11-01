@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Linking,
   Modal,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { radii, shadows, spacing, typography } from '../design/tokens';
 import { NativeIcon } from './NativeIcon';
-import { formatEventDateRange } from '../features/eventHub';
+import { formatEventDateRange, formatEventTimeRange } from '../features/eventHub';
 
 interface ShareModalProps {
   visible: boolean;
@@ -20,8 +20,6 @@ interface ShareModalProps {
 }
 
 export function ShareModal({ visible, onClose, event, dark }: ShareModalProps) {
-  const [toast, setToast] = useState<string | null>(null);
-
   if (!visible || !event) return null;
 
   const eventName = event.name || 'Campus Event';
@@ -32,27 +30,10 @@ export function ShareModal({ visible, onClose, event, dark }: ShareModalProps) {
     ? formatEventDateRange(event.start_at, event.end_at)
     : 'Date TBA';
 
-  const timeFormatted = (() => {
-    if (!event.start_at) return 'Time TBA';
-    try {
-      const start = new Date(event.start_at);
-      return start.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return 'Time TBA';
-    }
-  })();
+  const timeFormatted = formatEventTimeRange(event.start_at, event.end_at) || 'Time TBA';
 
   const venueFormatted = event.venue_name || 'LPU Campus';
   const shareMessage = `🎉 Check out *${eventName}* at LPU!\n📅 Date: ${dateFormatted}\n⏰ Time: ${timeFormatted}\n📍 Venue: ${venueFormatted}\n\n👉 View details & register: ${shareUrl}`;
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  };
 
   const handleNativeShare = async () => {
     try {
@@ -110,13 +91,6 @@ export function ShareModal({ visible, onClose, event, dark }: ShareModalProps) {
             {eventName}
           </Text>
 
-          {/* Toast Notification */}
-          {toast ? (
-            <View style={styles.toast}>
-              <NativeIcon name="check" size={14} color="#16a34a" />
-              <Text style={styles.toastText}>{toast}</Text>
-            </View>
-          ) : null}
 
           {/* Event Quick Snapshot Card */}
           <View

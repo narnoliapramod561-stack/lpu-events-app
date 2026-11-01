@@ -27,6 +27,7 @@ export class NativeCache {
     options: { allowStale?: boolean; revision?: string } = {},
   ): Promise<CacheRead<T> | null> {
     const now = Date.now();
+    let fromStorage = false;
     let entry = this.memory.get(key) as StoredEntry<T> | undefined;
     if (!entry) {
       try {
@@ -34,6 +35,7 @@ export class NativeCache {
         if (raw) {
           entry = JSON.parse(raw) as StoredEntry<T>;
           this.memory.set(key, entry);
+          fromStorage = true;
         }
       } catch {
         return null;
@@ -47,8 +49,9 @@ export class NativeCache {
     if (options.revision && entry.revision && options.revision !== entry.revision) {
       return null;
     }
-    const stale = entry.expiresAt <= now;
-    if (stale && (!options.allowStale || entry.staleUntil <= now)) {
+    const expired = entry.expiresAt <= now;
+    const stale = fromStorage || expired;
+    if (expired && (!options.allowStale || entry.staleUntil <= now)) {
       return null;
     }
     return { data: entry.data, stale, revision: entry.revision };

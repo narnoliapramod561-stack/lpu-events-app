@@ -22,14 +22,29 @@ const content: Record<Exclude<InfoPageKind, 'contact'>, { eyebrow: string; title
     ],
   },
   privacy: {
-    eyebrow: 'Privacy & AdSense Compliance',
-    title: 'Privacy Policy & Google AdSense Disclosures',
-    paragraphs: ['Effective Date: January 1, 2026 • Last Updated: September 2026', 'Welcome to LPU Events, accessible at https://lpuevents.live. We respect your privacy and are committed to protecting information associated with your use of our public platform.'],
+    eyebrow: 'Privacy-First Architecture',
+    title: 'Privacy Policy & Platform Transparency',
+    paragraphs: [
+      'Effective Date: January 1, 2026 • Last Updated: October 2026',
+      'Welcome to LPU Events, accessible at https://lpuevents.live and via the mobile application. We prioritize student privacy with a zero-friction discovery experience.',
+    ],
     sections: [
-      ['Google AdSense & third-party advertising', 'Third-party vendors, including Google, may use cookies to serve ads based on a user’s prior visits. Users can manage personalized advertising through Google Ads Settings and AboutAds.info.'],
-      ['Information we handle', 'The platform provides public event discovery. It does not require student accounts, collect passwords, or provide student profiles. Basic technical data may be handled by hosting, analytics, advertising, and security providers.'],
-      ['Your choices', 'You may control cookies and personalized advertising through your device and browser settings. For privacy or data questions, contact contact@lpuevents.live.'],
-      ['Contact', 'For questions about this policy, email contact@lpuevents.live.'],
+      [
+        'Zero Advertising Policy',
+        'LPU Events is completely ad-free. We do not use third-party advertising networks, behavioral ad trackers, or commercial profiling cookies. Your browsing and event discovery activity is never monetized.',
+      ],
+      [
+        'Information We Handle',
+        'The platform provides open public event discovery. It does not require student registration, password creation, or personal profiles. Essential technical data is strictly limited to performance caching, edge CDN reliability, and platform security.',
+      ],
+      [
+        'Verified Campus Content',
+        'All campus events are curated from verified university student organizations, academic departments, and authorized faculties. External registration links navigate directly to official organizer forms.',
+      ],
+      [
+        'Contact & Inquiries',
+        'For privacy inquiries, event listing feedback, or campus club listings, contact contact@lpuevents.live.',
+      ],
     ],
   },
   terms: {
@@ -56,11 +71,13 @@ export function InfoPage({ kind, dark }: { kind: InfoPageKind; dark: boolean }) 
   if (kind === 'contact') {
     return (
       <PageShell dark={dark} title="Support & Inquiries">
-        <Header dark={dark} eyebrow="Official Contact Channel" title="Contact LPU Events Team" description="We’re here to assist students, organizers, and campus visitors." />
+        <Header dark={dark} eyebrow="Official Contact Channel" title="Contact LPU Events Team" description="We’re here to assist students, organizers, and campus clubs." />
         <Card dark={dark}>
-          <Text style={[styles.body, { color: palette.mutedText }]}>Have questions about an upcoming event, need technical support, want to report an inaccurate listing, or inquire about platform partnerships? Reach out through an official channel.</Text>
+          <Text style={[styles.body, { color: palette.mutedText }]}>
+            Have questions about an upcoming event, need technical support, want to feature your student club event, or report an inaccurate listing? Reach out directly through our verified campus channel.
+          </Text>
           {[
-            ['Official Inquiries & Support', 'contact@lpuevents.live'],
+            ['General Support & Club Event Listings', 'contact@lpuevents.live'],
           ].map(([label, address]) => <Pressable key={address} style={styles.contactRow} onPress={() => openMail(address, 'LPU Events inquiry')}><Text style={[styles.caption, { color: palette.mutedText }]}>{label}</Text><Text style={[styles.link, { color: palette.primary }]}>{address}</Text></Pressable>)}
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Send a message</Text>
           {submitted ? <Text style={[styles.body, { color: '#16a34a' }]}>Your message has been prepared in your mail client.</Text> : <>

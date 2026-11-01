@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import {
   ActivityIndicator,
   ImageBackground,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -85,28 +86,36 @@ export default function HomeScreen() {
     if (forceRefresh) setRefreshing(true);
     setErrorMessage(null);
     setErrorCode(null);
-    const result = await api.getHomepage(forceRefresh);
-    if (result.data) {
-      setBundle(result.data);
-      setLoading(false);
-      if (result.stale && !forceRefresh) {
-        void api.getHomepage(true).then((fresh) => {
-          if (fresh.data) setBundle(fresh.data);
-        });
-      }
-    } else {
-      // Offline fallback: try static snapshot if live API failed
-      const snapshotResult = await api.getHomepageSnapshot();
-      if (snapshotResult.data) {
-        setBundle(snapshotResult.data);
+    try {
+      const result = await api.getHomepage(forceRefresh);
+      if (result.data) {
+        setBundle(result.data);
         setLoading(false);
+        if (result.stale && !forceRefresh) {
+          void api.getHomepage(true).then((fresh) => {
+            if (fresh.data && !fresh.notModified) {
+              setBundle(fresh.data);
+            }
+          });
+        }
       } else {
-        setErrorMessage(result.error.message);
-        setErrorCode(result.error.code);
-        setLoading(false);
+        // Offline fallback: try static snapshot if live API failed
+        const snapshotResult = await api.getHomepageSnapshot();
+        if (snapshotResult.data) {
+          setBundle(snapshotResult.data);
+          setLoading(false);
+        } else {
+          setErrorMessage(result.error?.message || 'Unable to load events');
+          setErrorCode(result.error?.code || 'UNKNOWN');
+          setLoading(false);
+        }
       }
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Unable to refresh events');
+      setLoading(false);
+    } finally {
+      setRefreshing(false);
     }
-    setRefreshing(false);
   }, []);
 
   useEffect(() => {
@@ -201,26 +210,33 @@ export default function HomeScreen() {
     >
       <View style={styles.page}>
         <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
-          <ImageBackground
-            source={require('../assets/lpu-events-campus-glass-background.webp')}
-            resizeMode="cover"
-            style={StyleSheet.absoluteFill}
-            imageStyle={styles.backgroundImage}
-          >
-            {dark ? <View style={styles.backgroundWash} /> : null}
-          </ImageBackground>
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <ImageBackground
+              source={require('../assets/lpu-events-campus-glass-background.webp')}
+              resizeMode="cover"
+              style={StyleSheet.absoluteFill}
+              imageStyle={styles.backgroundImage}
+            >
+              {dark ? <View style={styles.backgroundWash} /> : null}
+            </ImageBackground>
+          </View>
 
           <ScrollView
             ref={scrollRef}
             style={styles.scroll}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
-            nestedScrollEnabled={true}
+            bounces={true}
+            alwaysBounceVertical={true}
+            overScrollMode="always"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={() => void loadHomepage(true)}
                 tintColor={palette.primary}
+                colors={[palette.primary]}
+                progressBackgroundColor={dark ? '#1c1c22' : '#ffffff'}
+                progressViewOffset={Platform.OS === 'android' ? 68 : 0}
               />
             }
           >
@@ -321,6 +337,7 @@ export default function HomeScreen() {
           }}
           onSelectEvent={handleSelectEvent}
           allEvents={bundle?.events || []}
+          onRefresh={() => void loadHomepage(true)}
         />
       </View>
       {isSplashVisible ? <SplashScreen onFinished={finishSplash} /> : null}

@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useMemo, useRef, useState } from 'react';
 import {
   Linking,
   Modal,
@@ -28,6 +28,7 @@ interface HomeHeaderProps {
   onSelectTrending?: () => void;
   onSelectEvent?: (id: string) => void;
   allEvents?: EventFeedItem[];
+  onRefresh?: () => void;
 }
 
 function HomeHeaderComponent({
@@ -40,11 +41,22 @@ function HomeHeaderComponent({
   onSelectTrending,
   onSelectEvent,
   allEvents = [],
+  onRefresh,
 }: HomeHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
   const palette = dark ? colors.dark : colors.light;
+  const lastRefreshRef = useRef(0);
+
+  const handleBrandClick = () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current > 3000) {
+      lastRefreshRef.current = now;
+      onRefresh?.();
+    }
+    router.replace('/');
+  };
 
   const suggestions = useMemo(() => {
     const clean = query.trim().toLowerCase();
@@ -93,7 +105,7 @@ function HomeHeaderComponent({
           accessibilityRole="button"
           accessibilityLabel="Go to LPU Events home"
           style={styles.brand}
-          onPress={() => router.replace('/')}
+          onPress={handleBrandClick}
         >
           <LpuEventsLogo size={36} />
           <Text style={[styles.brandText, { color: palette.text }]}>
@@ -220,7 +232,7 @@ function HomeHeaderComponent({
         </View>
       ) : null}
 
-      {/* Slide-out Menu Modal matching website drawer */}
+      {/* Top Half-Screen Glass Sheet Menu matching website drawer */}
       <Modal
         visible={menuOpen}
         transparent
@@ -228,22 +240,32 @@ function HomeHeaderComponent({
         onRequestClose={() => setMenuOpen(false)}
       >
         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-          <View
+          <Pressable
             style={[
               styles.menu,
               {
-                backgroundColor: dark ? '#1c1c22' : '#ffffff',
-                borderColor: palette.outline,
+                backgroundColor: dark ? 'rgba(24,24,30,0.96)' : 'rgba(255,255,255,0.96)',
+                borderColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
               },
             ]}
+            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.menuTop}>
               <View style={styles.menuBrand}>
                 <LpuEventsLogo size={32} />
                 <Text style={[styles.menuTitle, { color: palette.text }]}>LPU Events</Text>
               </View>
-              <Pressable onPress={() => setMenuOpen(false)} style={styles.menuCloseBtn}>
-                <NativeIcon name="x" size={16} color={palette.text} />
+              <Pressable
+                onPress={() => setMenuOpen(false)}
+                style={[
+                  styles.menuCloseBtn,
+                  {
+                    backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+                  },
+                ]}
+                accessibilityLabel="Close menu"
+              >
+                <NativeIcon name="x" size={15} color={palette.text} strokeWidth={2.4} />
               </Pressable>
             </View>
 
@@ -253,11 +275,21 @@ function HomeHeaderComponent({
                 style={styles.menuItem}
                 onPress={() => {
                   setMenuOpen(false);
-                  router.replace('/');
+                  handleBrandClick();
                 }}
               >
                 <View style={styles.menuItemLeft}>
-                  <NativeIcon name="home" size={18} color="#ff6b00" />
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="home" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
                   <Text style={[styles.menuLabel, { color: palette.text }]}>Home</Text>
                 </View>
                 <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
@@ -272,7 +304,17 @@ function HomeHeaderComponent({
                 }}
               >
                 <View style={styles.menuItemLeft}>
-                  <NativeIcon name="layout-grid" size={18} color="#ff6b00" />
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="layout-grid" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
                   <Text style={[styles.menuLabel, { color: palette.text }]}>Event Categories</Text>
                 </View>
                 <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
@@ -287,7 +329,17 @@ function HomeHeaderComponent({
                 }}
               >
                 <View style={styles.menuItemLeft}>
-                  <NativeIcon name="flame" size={18} color="#ea580c" />
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="flame" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
                   <Text style={[styles.menuLabel, { color: palette.text }]}>Trending Events</Text>
                 </View>
                 <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
@@ -302,9 +354,19 @@ function HomeHeaderComponent({
                 }}
               >
                 <View style={styles.menuItemLeft}>
-                  <NativeIcon name="users" size={18} color="#ff6b00" />
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="users" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
                   <Text style={[styles.menuLabel, { color: palette.text }]}>
-                    Student Clubs & Organizations
+                    Student Clubs &amp; Organizations
                   </Text>
                 </View>
                 <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
@@ -319,7 +381,17 @@ function HomeHeaderComponent({
                 }}
               >
                 <View style={styles.menuItemLeft}>
-                  <NativeIcon name="info" size={18} color="#ff6b00" />
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="info" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
                   <Text style={[styles.menuLabel, { color: palette.text }]}>About LPU Events</Text>
                 </View>
                 <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
@@ -334,8 +406,45 @@ function HomeHeaderComponent({
                 }}
               >
                 <View style={styles.menuItemLeft}>
-                  <NativeIcon name="mail" size={18} color="#ff6b00" />
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="mail" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
                   <Text style={[styles.menuLabel, { color: palette.text }]}>Contact Support</Text>
+                </View>
+                <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
+              </Pressable>
+
+              {/* Club & Event Listing Inquiry (matching student website) */}
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  router.push('/contact');
+                }}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="sparkles" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
+                  <Text style={[styles.menuLabel, { color: palette.text }]}>
+                    Club &amp; Event Listing Inquiry
+                  </Text>
                 </View>
                 <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
               </Pressable>
@@ -349,7 +458,17 @@ function HomeHeaderComponent({
                 }}
               >
                 <View style={styles.menuItemLeft}>
-                  <NativeIcon name="shield-check" size={18} color="#ff6b00" />
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="shield-check" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
                   <Text style={[styles.menuLabel, { color: palette.text }]}>Privacy Policy</Text>
                 </View>
                 <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
@@ -364,41 +483,64 @@ function HomeHeaderComponent({
                 }}
               >
                 <View style={styles.menuItemLeft}>
-                  <NativeIcon name="briefcase" size={18} color="#ff6b00" />
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(234,88,12,0.22)' : 'rgba(234,88,12,0.12)',
+                        borderColor: 'rgba(234,88,12,0.25)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name="briefcase" size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
                   <Text style={[styles.menuLabel, { color: palette.text }]}>Terms of Service</Text>
                 </View>
                 <NativeIcon name="arrow-right" size={15} color={palette.mutedText} />
               </Pressable>
 
-              {/* Organizer Portal */}
-              <Pressable
-                style={[styles.menuItem, styles.portalItem]}
-                onPress={() => {
-                  setMenuOpen(false);
-                  Linking.openURL('https://www.lpueventsadmin.live/apply').catch(() => {});
-                }}
-              >
-                <View style={styles.menuItemLeft}>
-                  <NativeIcon name="external-link" size={18} color="#ff6b00" />
-                  <Text style={[styles.menuLabel, { color: palette.text }]}>Organizer Portal</Text>
-                </View>
-                <View style={styles.applyBadge}>
-                  <Text style={styles.applyBadgeText}>APPLY</Text>
-                </View>
-              </Pressable>
-
               {/* Theme Toggle in Menu */}
-              <View style={styles.themeToggleRow}>
-                <Text style={[styles.themeLabel, { color: palette.mutedText }]}>Appearance</Text>
-                <Pressable onPress={onToggleTheme} style={styles.themeBtn}>
-                  <NativeIcon name={dark ? 'sun' : 'moon'} size={15} color={palette.text} />
+              <View
+                style={[
+                  styles.themeToggleRow,
+                  {
+                    borderTopColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
+                  },
+                ]}
+              >
+                <View style={styles.appearanceLeft}>
+                  <View
+                    style={[
+                      styles.menuIconBox,
+                      {
+                        backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)',
+                        borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                      },
+                    ]}
+                  >
+                    <NativeIcon name={dark ? 'moon' : 'sun'} size={17} color="#ea580c" strokeWidth={2.4} />
+                  </View>
+                  <Text style={[styles.themeLabel, { color: palette.text }]}>Appearance</Text>
+                </View>
+
+                <Pressable
+                  onPress={onToggleTheme}
+                  style={[
+                    styles.themeBtn,
+                    {
+                      backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.90)',
+                      borderColor: dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)',
+                    },
+                  ]}
+                >
+                  <NativeIcon name={dark ? 'sun' : 'moon'} size={14} color={dark ? '#f59e0b' : '#6366f1'} />
                   <Text style={[styles.themeBtnText, { color: palette.text }]}>
-                    {dark ? 'Light Mode' : 'Dark Mode'}
+                    {dark ? 'Dark Mode' : 'Light Mode'}
                   </Text>
                 </Pressable>
               </View>
             </ScrollView>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -551,26 +693,26 @@ const styles = StyleSheet.create({
   },
   menuBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(2,6,23,0.55)',
+    backgroundColor: 'rgba(2,6,23,0.45)',
     justifyContent: 'flex-start',
-    alignItems: 'flex-end',
   },
   menu: {
-    width: '85%',
-    maxWidth: 360,
-    height: '100%',
-    paddingTop: 50,
-    paddingHorizontal: 18,
-    paddingBottom: 24,
-    borderLeftWidth: 1,
+    width: '100%',
+    maxHeight: '56%',
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    borderBottomWidth: 1.5,
     ...shadows.glass,
   },
   menuTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingBottom: 14,
+    marginBottom: 14,
+    paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(148,163,184,0.2)',
   },
@@ -581,34 +723,27 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontFamily: typography.headingFamily,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
   },
   menuCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(100,116,139,0.14)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   menuList: {
-    gap: 4,
+    gap: 2,
   },
   menuItem: {
-    minHeight: 46,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     borderRadius: 12,
-  },
-  portalItem: {
-    marginTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(148,163,184,0.18)',
-    paddingTop: 14,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -616,51 +751,51 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
-  menuLabel: {
-    fontFamily: typography.fontFamily,
-    fontSize: 13.5,
-    fontWeight: '800',
-  },
-  applyBadge: {
-    backgroundColor: 'rgba(255,107,0,0.14)',
+  menuIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,107,0,0.3)',
-    borderRadius: radii.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  applyBadgeText: {
-    color: '#ff6b00',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+  menuLabel: {
+    fontFamily: typography.headingFamily,
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   themeToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 20,
-    paddingTop: 14,
+    marginTop: 14,
+    paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(148,163,184,0.2)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
+  },
+  appearanceLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   themeLabel: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontFamily: typography.headingFamily,
+    fontSize: 13.5,
+    fontWeight: '900',
   },
   themeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.3)',
   },
   themeBtnText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '900',
+    fontFamily: typography.headingFamily,
   },
 });
