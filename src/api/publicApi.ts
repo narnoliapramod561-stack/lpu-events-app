@@ -1,4 +1,5 @@
 import { NativeCache } from '../cache/nativeCache.ts';
+import { extractEventId, isUuid, slugify } from '../utils/slug.ts';
 import type {
   ApiResult,
   EventDetails,
@@ -90,11 +91,61 @@ function error(code: PublicApiError['code'], message: string, extra: Partial<Pub
 }
 
 export class PublicApiClient {
+  private static readonly inMemoryFeedMap = new Map<string, EventFeedItem>();
+  private static readonly sessionViewedEvents = new Set<string>();
+
   private readonly fetchFn: typeof fetch;
   private readonly cache: NativeCache;
   private readonly timeoutMs: number;
   private readonly inFlight = new Map<string, Promise<ApiResult<unknown>>>();
   private snapshotRevision: string | undefined;
+
+  static registerFeedItems(items: (EventFeedItem | EventDetails | unknown)[]): void {
+    if (!Array.isArray(items)) return;
+    for (const item of items) {
+      if (!isEvent(item)) continue;
+      const idLower = item.id.toLowerCase();
+      PublicApiClient.inMemoryFeedMap.set(idLower, item);
+      PublicApiClient.inMemoryFeedMap.set(item.id, item);
+      if (item.name) {
+        const slug = slugify(item.name);
+        if (slug) {
+          PublicApiClient.inMemoryFeedMap.set(slug, item);
+        }
+      }
+    }
+  }
+
+  getPreloadedEvent(identifier: string): EventFeedItem | null {
+    if (!identifier) return null;
+    const clean = identifier.trim();
+    const extracted = extractEventId(clean).toLowerCase();
+    return (
+      PublicApiClient.inMemoryFeedMap.get(extracted) ??
+      PublicApiClient.inMemoryFeedMap.get(clean.toLowerCase()) ??
+      PublicApiClient.inMemoryFeedMap.get(clean) ??
+      null
+    );
+  }
+
+  async incrementEventView(identifier: string): Promise<void> {
+    const clean = extractEventId(identifier).toLowerCase();
+    if (!isUuid(clean)) return;
+    if (PublicApiClient.sessionViewedEvents.has(clean)) return;
+    PublicApiClient.sessionViewedEvents.add(clean);
+
+    try {
+      await this.fetchFn(this.apiUrl('view'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ event_id: clean }),
+      });
+    } catch {
+      // Non-blocking telemetry
+    }
+  }
 
   constructor(options: PublicApiOptions = {}) {
     this.fetchFn = options.fetchFn ?? fetch.bind(globalThis);
@@ -221,7 +272,7 @@ export class PublicApiClient {
 
   async getHomepage(forceRefresh = false): Promise<ApiResult<HomepageBundle>> {
     const cached = await this.cache.read('homepage', isHomepage, { allowStale: true });
-    return this.cached(
+    const result = await this.cached(
       'homepage',
       isHomepage,
       5 * 60_000,
@@ -229,6 +280,12 @@ export class PublicApiClient {
       undefined,
       forceRefresh
     );
+    if (result.data) {
+      PublicApiClient.registerFeedItems(result.data.events);
+      PublicApiClient.registerFeedItems(result.data.trending);
+      PublicApiClient.registerFeedItems(result.data.featured.map((f: any) => f?.events || f));
+    }
+    return result;
   }
 
   async getEventFeed(filters: EventFeedFilters = {}, forceRefresh = false): Promise<ApiResult<EventFeedItem[]>> {
@@ -241,7 +298,7 @@ export class PublicApiClient {
     if (filters.show_past) params.set('show_past', 'true');
     const key = `events:${params.toString()}`;
     const cached = await this.cache.read(key, isEventList, { allowStale: true });
-    return this.cached(
+    const result = await this.cached(
       key,
       isEventList,
       60_000,
@@ -249,6 +306,10 @@ export class PublicApiClient {
       undefined,
       forceRefresh
     );
+    if (result.data) {
+      PublicApiClient.registerFeedItems(result.data);
+    }
+    return result;
   }
 
   async searchEvents(query: string, options: EventFeedFilters & { event_name_only?: boolean } = {}): Promise<ApiResult<EventFeedItem[]>> {
@@ -261,25 +322,87 @@ export class PublicApiClient {
     if (options.event_name_only) params.set('event_name_only', 'true');
     const key = `search:${params.toString()}`;
     const cached = await this.cache.read(key, isEventList, { allowStale: true });
-    return this.cached(
+    const result = await this.cached(
       key,
       isEventList,
       60_000,
       () => this.request(`${this.apiUrl('search')}?${params}`, isEventList, cached?.revision, cached?.data)
     );
+    if (result.data) {
+      PublicApiClient.registerFeedItems(result.data);
+    }
+    return result;
   }
 
   async getEventDetails(identifier: string): Promise<ApiResult<EventDetails>> {
     const clean = identifier.trim();
-    if (!clean || !/^[a-zA-Z0-9_-]+$/.test(clean)) return { data: null, error: error('INVALID_ARGUMENT', 'A valid event identifier is required.') };
-    const key = `detail:${clean}`;
-    const cached = await this.cache.read(key, isDetails, { allowStale: true });
-    return this.cached(
-      key,
-      isDetails,
-      120_000,
-      () => this.request(this.apiUrl(`events/${encodeURIComponent(clean)}`), isDetails, cached?.revision, cached?.data)
-    );
+    if (!clean) return { data: null, error: error('INVALID_ARGUMENT', 'A valid event identifier is required.') };
+
+    const extracted = extractEventId(clean);
+    const targetUuid = isUuid(clean) ? clean.toLowerCase() : (isUuid(extracted) ? extracted.toLowerCase() : null);
+
+    if (targetUuid) {
+      const key = `detail:${targetUuid}`;
+      const cached = await this.cache.read(key, isDetails, { allowStale: true });
+      const res = await this.cached(
+        key,
+        isDetails,
+        120_000,
+        () => this.request(this.apiUrl(`events/${encodeURIComponent(targetUuid)}`), isDetails, cached?.revision, cached?.data)
+      );
+
+      if (res.data) {
+        PublicApiClient.registerFeedItems([res.data]);
+        if (clean.toLowerCase() !== targetUuid) {
+          await this.cache.write(`detail:${clean.toLowerCase()}`, res.data, 120_000, 120_000);
+        }
+        return res;
+      }
+
+      // Resilient fallback: Try snapshot manifest
+      const snapshotRes = await this.getEventDetailsWithSnapshot(targetUuid);
+      if (snapshotRes.data) {
+        PublicApiClient.registerFeedItems([snapshotRes.data]);
+        return snapshotRes;
+      }
+      return res;
+    }
+
+    // Slug-based identifier (e.g., 'hackathon-2026')
+    const slug = slugify(clean);
+    const slugKey = `detail:${slug}`;
+    const cachedSlug = await this.cache.read(slugKey, isDetails, { allowStale: true });
+    if (cachedSlug && !cachedSlug.stale) {
+      return { data: cachedSlug.data, error: null, fromCache: true };
+    }
+
+    // 1. Check in-memory feed map first
+    const preloaded = this.getPreloadedEvent(slug);
+    if (preloaded && isUuid(preloaded.id)) {
+      return this.getEventDetails(preloaded.id);
+    }
+
+    // 2. Slug lookup via search endpoint
+    const query = slug.replace(/-/g, ' ');
+    const searchRes = await this.searchEvents(query, { limit: 10, event_name_only: true });
+    if (searchRes.data && Array.isArray(searchRes.data)) {
+      const match = searchRes.data.find(
+        (e) => slugify(e.name) === slug || e.id.toLowerCase() === slug || e.id.toLowerCase() === clean.toLowerCase()
+      );
+      if (match && isUuid(match.id)) {
+        const detailRes = await this.getEventDetails(match.id);
+        if (detailRes.data) {
+          await this.cache.write(slugKey, detailRes.data, 120_000, 120_000);
+          return detailRes;
+        }
+      }
+    }
+
+    // 3. Fallback: try snapshot by slug or clean
+    const snapshotRes = await this.getEventDetailsWithSnapshot(clean);
+    if (snapshotRes.data) return snapshotRes;
+
+    return { data: null, error: error('HTTP_ERROR', 'This event could not be found.', { status: 404 }) };
   }
 
   async getSnapshotManifest(forceRefresh = false): Promise<ApiResult<SnapshotManifest>> {
@@ -293,7 +416,13 @@ export class PublicApiClient {
     const manifest = await this.getSnapshotManifest();
     if (!manifest.data) return manifest as ApiResult<HomepageSnapshot>;
     this.snapshotRevision = manifest.data.revision;
-    return this.cached(`snapshot:homepage:${manifest.data.revision}`, isHomepageSnapshot, 24 * 60 * 60_000, () => this.request(`${PUBLIC_CONTENT_BASE_URL}/${manifest.data!.resources.homepage}`, isHomepageSnapshot), manifest.data.revision);
+    const result = await this.cached(`snapshot:homepage:${manifest.data.revision}`, isHomepageSnapshot, 24 * 60 * 60_000, () => this.request(`${PUBLIC_CONTENT_BASE_URL}/${manifest.data!.resources.homepage}`, isHomepageSnapshot), manifest.data.revision);
+    if (result.data) {
+      PublicApiClient.registerFeedItems(result.data.events);
+      PublicApiClient.registerFeedItems(result.data.trending);
+      PublicApiClient.registerFeedItems(result.data.featured.map((f: any) => f?.events || f));
+    }
+    return result;
   }
 
   async getHomepageWithSnapshot(): Promise<ApiResult<HomepageBundle>> {
@@ -306,7 +435,11 @@ export class PublicApiClient {
   async getEventsCatalogueSnapshot(): Promise<ApiResult<EventsCatalogueSnapshot>> {
     const manifest = await this.getSnapshotManifest();
     if (!manifest.data) return manifest as ApiResult<EventsCatalogueSnapshot>;
-    return this.cached(`snapshot:catalogue:${manifest.data.revision}`, isCatalogueSnapshot, 24 * 60 * 60_000, () => this.request(`${PUBLIC_CONTENT_BASE_URL}/${manifest.data!.resources.catalogue}`, isCatalogueSnapshot), manifest.data.revision);
+    const result = await this.cached(`snapshot:catalogue:${manifest.data.revision}`, isCatalogueSnapshot, 24 * 60 * 60_000, () => this.request(`${PUBLIC_CONTENT_BASE_URL}/${manifest.data!.resources.catalogue}`, isCatalogueSnapshot), manifest.data.revision);
+    if (result.data) {
+      PublicApiClient.registerFeedItems(result.data.events);
+    }
+    return result;
   }
 
   async getEventsCatalogueWithSnapshot(): Promise<ApiResult<EventsCatalogueSnapshot>> {

@@ -31,13 +31,13 @@ export interface CategoryFeedItem {
   key: string;
   name: string;
   sort_order?: number;
-  subcategories?: Array<{
+  subcategories?: {
     id: string;
     category_id?: string;
     key: string;
     name: string;
     sort_order?: number;
-  }>;
+  }[];
 }
 
 export interface EventDetails extends EventFeedItem {
@@ -47,14 +47,14 @@ export interface EventDetails extends EventFeedItem {
   capacity_limit?: number | null;
   created_at?: string;
   updated_at?: string;
-  event_content_sections?: Array<{
+  event_content_sections?: {
     id: string;
     event_id?: string;
     section_type: string;
     title: string;
     content: unknown;
     sort_order: number;
-  }>;
+  }[];
 }
 
 export interface HomepageBundle {
@@ -62,7 +62,7 @@ export interface HomepageBundle {
   carousel: unknown[];
   featured: unknown[];
   trending: EventFeedItem[];
-  settings: Array<{ key: string; value: unknown }>;
+  settings: { key: string; value: unknown }[];
   events: EventFeedItem[];
 }
 

@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LpuEventsLogo } from './LpuEventsLogo';
 import { NativeIcon } from './NativeIcon';
-import { radii, shadows, spacing, typography } from '../design/tokens';
+import { radii, spacing, typography } from '../design/tokens';
 
 interface MaintenanceViewProps {
   onRetry: () => void;

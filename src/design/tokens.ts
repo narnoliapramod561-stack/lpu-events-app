@@ -53,12 +53,19 @@ export const radii = {
 
 export const typography = {
   fontFamily: Platform.select({
+    ios: 'System',
     android: 'sans-serif',
     default: 'sans-serif',
   }),
   headingFamily: Platform.select({
+    ios: 'System',
     android: 'sans-serif',
     default: 'sans-serif',
+  }),
+  cormorantItalic: Platform.select({
+    ios: 'CormorantGaramond-BoldItalic',
+    android: 'CormorantGaramond-BoldItalic',
+    default: 'CormorantGaramond-BoldItalic',
   }),
   sizes: {
     caption: 12,
@@ -86,39 +93,39 @@ export const shadows = {
   },
   glass: {
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 14,
+    elevation: 2,
   },
 } as const;
 
 export const glass = {
   light: {
-    panelBg: 'rgba(255, 255, 255, 0.62)',
-    cardBg: 'rgba(255, 255, 255, 0.52)',
-    cardDeckBg: 'rgba(255, 255, 255, 0.38)',
-    pillBg: 'rgba(255, 255, 255, 0.68)',
-    pillBorder: 'rgba(255, 255, 255, 0.90)',
-    border: 'rgba(255, 255, 255, 0.85)',
-    borderSubtle: 'rgba(255, 255, 255, 0.45)',
-    specularRim: 'rgba(255, 255, 255, 0.98)',
+    panelBg: 'rgba(255, 255, 255, 0.54)',
+    cardBg: 'rgba(255, 255, 255, 0.46)',
+    cardDeckBg: 'rgba(255, 255, 255, 0.32)',
+    pillBg: 'rgba(255, 255, 255, 0.58)',
+    pillBorder: 'rgba(255, 255, 255, 0.50)',
+    border: 'rgba(255, 255, 255, 0.42)',
+    borderSubtle: 'rgba(255, 255, 255, 0.28)',
+    specularRim: 'rgba(255, 255, 255, 0.65)',
     headerBg: 'rgba(255, 255, 255, 0.38)',
-    modalBg: 'rgba(255, 255, 255, 0.72)',
-    tintBg: 'rgba(255, 255, 255, 0.45)',
+    modalBg: 'rgba(255, 255, 255, 0.68)',
+    tintBg: 'rgba(255, 255, 255, 0.35)',
   },
   dark: {
-    panelBg: 'rgba(26, 28, 38, 0.68)',
-    cardBg: 'rgba(22, 24, 34, 0.62)',
-    cardDeckBg: 'rgba(16, 17, 24, 0.50)',
-    pillBg: 'rgba(255, 255, 255, 0.12)',
-    pillBorder: 'rgba(255, 255, 255, 0.22)',
-    border: 'rgba(255, 255, 255, 0.18)',
-    borderSubtle: 'rgba(255, 255, 255, 0.10)',
-    specularRim: 'rgba(255, 255, 255, 0.45)',
+    panelBg: 'rgba(22, 24, 32, 0.58)',
+    cardBg: 'rgba(18, 20, 28, 0.52)',
+    cardDeckBg: 'rgba(14, 15, 20, 0.42)',
+    pillBg: 'rgba(255, 255, 255, 0.08)',
+    pillBorder: 'rgba(255, 255, 255, 0.14)',
+    border: 'rgba(255, 255, 255, 0.10)',
+    borderSubtle: 'rgba(255, 255, 255, 0.06)',
+    specularRim: 'rgba(255, 255, 255, 0.25)',
     headerBg: 'rgba(18, 20, 26, 0.48)',
-    modalBg: 'rgba(22, 24, 32, 0.78)',
-    tintBg: 'rgba(18, 20, 28, 0.55)',
+    modalBg: 'rgba(22, 24, 32, 0.72)',
+    tintBg: 'rgba(18, 20, 28, 0.45)',
   },
 } as const;
 

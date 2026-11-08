@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
-  ImageBackground,
   Platform,
   Pressable,
   RefreshControl,
@@ -11,9 +10,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { BlurTargetView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import SplashScreen from '../src/components/SplashScreen';
+import { CampusBackground } from '../src/components/CampusBackground';
+import { SplashScreen } from '../src/components/SplashScreen';
 import { HomeHeader } from '../src/components/HomeHeader';
 import { NativeHeroCarousel } from '../src/components/NativeHeroCarousel';
 import { HappeningTodayNative } from '../src/components/HappeningTodayNative';
@@ -22,6 +21,7 @@ import { NativeFooter } from '../src/components/NativeFooter';
 import { MaintenanceView } from '../src/components/MaintenanceView';
 import { SiteNoticeBanner } from '../src/components/SiteNoticeBanner';
 import { colors, glass, radii, spacing } from '../src/design/tokens';
+import { BlurTargetView } from 'expo-blur';
 import { PublicApiClient } from '../src/api/publicApi';
 import type { EventFeedItem, HomepageBundle } from '../src/api/types';
 import {
@@ -73,11 +73,11 @@ export default function HomeScreen() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [eventHubQuery, setEventHubQuery] = useState('');
   const [categoriesOffset, setCategoriesOffset] = useState<number | null>(null);
-  const [forcedTimeline, setForcedTimeline] = useState<TimelineFilter | undefined>(undefined);
+  const [forcedTimeline] = useState<TimelineFilter | undefined>(undefined);
+  const [isTrendingActive, setIsTrendingActive] = useState(false);
   const [isSplashVisible, setSplashVisible] = useState(true);
-  const scrollRef = useRef<ScrollView>(null);
-  const blurTarget = useRef<View | null>(null);
-  const [blurTargetReady, setBlurTargetReady] = useState(false);
+  const scrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const blurTarget = useRef<React.ElementRef<typeof View>>(null);
   const palette = dark ? colors.dark : colors.light;
 
   const loadHomepage = useCallback(async (forceRefresh = false) => {
@@ -210,21 +210,8 @@ export default function HomeScreen() {
       edges={['top', 'bottom']}
     >
       <View style={styles.page}>
-        <BlurTargetView
-          ref={blurTarget}
-          onLayout={() => setBlurTargetReady(true)}
-          style={StyleSheet.absoluteFill}
-        >
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <ImageBackground
-              source={require('../assets/lpu-events-campus-glass-background.webp')}
-              resizeMode="cover"
-              style={StyleSheet.absoluteFill}
-              imageStyle={styles.backgroundImage}
-            >
-              {dark ? <View style={styles.backgroundWash} /> : null}
-            </ImageBackground>
-          </View>
+        <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
+          <CampusBackground dark={dark} />
 
           <ScrollView
             ref={scrollRef}
@@ -335,7 +322,6 @@ export default function HomeScreen() {
         </BlurTargetView>
 
         <HomeHeader
-          key={`header-${blurTargetReady ? 'ready' : 'init'}-${dark ? 'dark' : 'light'}`}
           style={styles.fixedHeader}
           blurTarget={blurTarget}
           dark={dark}
@@ -343,6 +329,7 @@ export default function HomeScreen() {
           onSearch={setEventHubQuery}
           onSelectCategories={handleSelectCategories}
           onSelectTrending={() => {
+            setIsTrendingActive(true);
             if (categoriesOffset !== null) {
               scrollRef.current?.scrollTo({
                 y: Math.max(0, categoriesOffset - spacing.md),
@@ -352,7 +339,11 @@ export default function HomeScreen() {
           }}
           onSelectEvent={handleSelectEvent}
           allEvents={bundle?.events || []}
-          onRefresh={() => void loadHomepage(true)}
+          onRefresh={() => {
+            setIsTrendingActive(false);
+            void loadHomepage(true);
+          }}
+          isTrendingActive={isTrendingActive}
         />
       </View>
       {isSplashVisible ? <SplashScreen onFinished={finishSplash} /> : null}
@@ -370,10 +361,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   page: { flex: 1 },
-  backgroundImage: { opacity: 1 },
-  backgroundWash: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(14,14,18,0.62)' },
   scroll: { flex: 1 },
-  content: { paddingTop: 64, paddingBottom: spacing.section },
+  content: { paddingTop: 72, paddingBottom: spacing.section },
   fixedHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, elevation: 5 },
   skeletonGroup: { marginHorizontal: spacing.gutter, marginTop: spacing.md },
   skeletonHero: { height: 230, borderRadius: radii.xl },

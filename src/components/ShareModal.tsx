@@ -69,7 +69,7 @@ export function ShareModal({ visible, onClose, event, dark }: ShareModalProps) {
             {
               backgroundColor: 'transparent',
               borderColor: dark ? glass.dark.border : glass.light.border,
-              borderWidth: 1.5,
+              borderWidth: 1,
             },
           ]}
           onPress={(e) => e.stopPropagation()}
@@ -79,7 +79,6 @@ export function ShareModal({ visible, onClose, event, dark }: ShareModalProps) {
             pointerEvents="none"
             intensity={dark ? 75 : 90}
             tint={dark ? 'dark' : 'light'}
-            blurMethod="none"
             style={StyleSheet.absoluteFill}
           />
 
@@ -92,7 +91,7 @@ export function ShareModal({ visible, onClose, event, dark }: ShareModalProps) {
             ]}
           />
 
-          <SpecularTopRim dark={dark} height={1.5} />
+          <SpecularTopRim dark={dark} height={1} />
           <GlassSheen dark={dark} />
           {/* Close button */}
           <Pressable onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close dialog">

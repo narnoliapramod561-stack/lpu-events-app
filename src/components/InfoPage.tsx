@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
@@ -7,10 +7,11 @@ import { NativeIcon } from './NativeIcon';
 import { LpuEventsLogo } from './LpuEventsLogo';
 import { openMailtoUrl } from '../utils/externalLinks';
 import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
+import { CampusBackground } from './CampusBackground';
 
 type InfoPageKind = 'about' | 'contact' | 'privacy' | 'terms';
 
-const content: Record<Exclude<InfoPageKind, 'contact'>, { eyebrow: string; title: string; paragraphs: string[]; sections: Array<[string, string]> }> = {
+const content: Record<Exclude<InfoPageKind, 'contact'>, { eyebrow: string; title: string; paragraphs: string[]; sections: [string, string][] }> = {
   about: {
     eyebrow: 'Official Student Discovery Hub',
     title: 'About LPU Events',
@@ -82,9 +83,9 @@ export function InfoPage({ kind, dark }: { kind: InfoPageKind; dark: boolean }) 
           ].map(([label, address]) => <Pressable key={address} style={styles.contactRow} onPress={() => openMail(address, 'LPU Events inquiry')}><Text style={[styles.caption, { color: palette.mutedText }]}>{label}</Text><Text style={[styles.link, { color: palette.primary }]}>{address}</Text></Pressable>)}
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Send a message</Text>
           {submitted ? <Text style={[styles.body, { color: '#16a34a' }]}>Your message has been prepared in your mail client.</Text> : <>
-            <TextInput value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={palette.mutedText} style={[styles.input, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1.5 }]} />
-            <TextInput value={email} onChangeText={setEmail} placeholder="Email" keyboardType="email-address" placeholderTextColor={palette.mutedText} style={[styles.input, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1.5 }]} />
-            <TextInput value={message} onChangeText={setMessage} placeholder="Message" multiline placeholderTextColor={palette.mutedText} style={[styles.input, styles.message, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1.5 }]} />
+            <TextInput value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={palette.mutedText} style={[styles.input, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1 }]} />
+            <TextInput value={email} onChangeText={setEmail} placeholder="Email" keyboardType="email-address" placeholderTextColor={palette.mutedText} style={[styles.input, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1 }]} />
+            <TextInput value={message} onChangeText={setMessage} placeholder="Message" multiline placeholderTextColor={palette.mutedText} style={[styles.input, styles.message, { color: palette.text, borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder, backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)', borderWidth: 1 }]} />
             <Pressable style={[styles.button, { backgroundColor: palette.primary, overflow: 'hidden' }]} onPress={() => { if (!name.trim() || !email.trim() || !message.trim()) return; void openMail('contact@lpuevents.live', `[LPU Events Inquiry] from ${name}`, `Name: ${name}\nEmail: ${email}\n\n${message}`).then((opened) => { if (opened) setSubmitted(true); }); }}>
               <SpecularTopRim dark={dark} height={1} />
               <Text style={styles.buttonText}>Prepare Email</Text>
@@ -104,18 +105,7 @@ function PageShell({ dark, title, children }: { dark: boolean; title: string; ch
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/'); };
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: palette.background }}>
-      <ImageBackground
-        source={require('../../assets/lpu-events-campus-glass-background.webp')}
-        resizeMode="cover"
-        style={StyleSheet.absoluteFill}
-      >
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: dark ? 'rgba(14,14,18,0.65)' : 'rgba(244,247,251,0.06)' },
-          ]}
-        />
-      </ImageBackground>
+      <CampusBackground dark={dark} />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.topbar}>
           <Pressable
@@ -125,7 +115,7 @@ function PageShell({ dark, title, children }: { dark: boolean; title: string; ch
               {
                 backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
                 borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
-                borderWidth: 1.5,
+                borderWidth: 1,
               },
             ]}
           >
@@ -150,11 +140,11 @@ function Header({ dark, eyebrow, title, description }: { dark: boolean; eyebrow:
         {
           backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
           borderColor: dark ? glass.dark.border : glass.light.border,
-          borderWidth: 1.5,
+          borderWidth: 1,
         },
       ]}
     >
-      <SpecularTopRim dark={dark} height={1.5} />
+      <SpecularTopRim dark={dark} height={1} />
       <GlassSheen dark={dark} />
       <LpuEventsLogo size={54} />
       <Text style={[styles.eyebrow, { color: palette.primary }]}>{eyebrow}</Text>
@@ -172,11 +162,11 @@ function Card({ dark, children }: { dark: boolean; children: React.ReactNode }) 
         {
           backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
           borderColor: dark ? glass.dark.border : glass.light.border,
-          borderWidth: 1.5,
+          borderWidth: 1,
         },
       ]}
     >
-      <SpecularTopRim dark={dark} height={1.5} />
+      <SpecularTopRim dark={dark} height={1} />
       <GlassSheen dark={dark} />
       {children}
     </View>

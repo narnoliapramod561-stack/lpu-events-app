@@ -3,6 +3,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Svg, { LinearGradient, Rect as SvgRect, Stop } from 'react-native-svg';
+import { useFonts } from 'expo-font';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect as SvgRect, Stop } from 'react-native-svg';
 import type { EventFeedItem } from '../api/types';
 import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { eventImageSource } from '../features/homepageModels';
@@ -70,11 +72,17 @@ const EventCard = memo(function EventCard({
           width: cardWidth,
           backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
           borderColor: dark ? glass.dark.border : glass.light.border,
-          borderWidth: 1.5,
+          borderWidth: 1,
         },
       ]}
     >
-      <SpecularTopRim dark={dark} height={1.5} />
+      <BlurView
+        pointerEvents="none"
+        intensity={dark ? 45 : 65}
+        tint={dark ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+      />
+      <SpecularTopRim dark={dark} height={1} />
       <GlassSheen dark={dark} />
       {/* 16:9 Banner Stage with Ambient Glow Backdrop matching Student Website */}
       <View style={styles.imageBox}>
@@ -122,15 +130,7 @@ const EventCard = memo(function EventCard({
       </View>
 
       {/* Bottom Information Deck matching Student Website */}
-      <View
-        style={[
-          styles.bottomDeck,
-          {
-            backgroundColor: dark ? glass.dark.cardDeckBg : glass.light.cardDeckBg,
-            borderTopColor: dark ? glass.dark.borderSubtle : glass.light.borderSubtle,
-          },
-        ]}
-      >
+      <View style={styles.bottomDeck}>
         {/* Single-line bold event title */}
         <Text
           numberOfLines={1}
@@ -141,63 +141,37 @@ const EventCard = memo(function EventCard({
 
         {/* Badges Row (Time + Location) & View Action */}
         <View style={styles.deckMetaRow}>
-          <View style={styles.metaPillsGroup}>
-            {/* Time Pill */}
-            <View
-              style={[
-                styles.metaPill,
-                {
-                  backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
-                  borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
-                  borderWidth: 1.5,
-                },
-              ]}
-            >
-              <NativeIcon name="clock" size={12} color={dark ? '#fb923c' : '#ea580c'} />
+          <View style={styles.metaInlineGroup}>
+            <View style={styles.metaInlineItem}>
+              <NativeIcon name="clock" size={12} color={dark ? '#fb923c' : '#ea580c'} strokeWidth={2.4} />
               <Text
                 numberOfLines={1}
-                style={[styles.metaPillText, { color: dark ? '#f1f5f9' : '#0f172a' }]}
+                style={[styles.metaInlineText, { color: dark ? '#cbd5e1' : '#475569' }]}
               >
                 {time}
               </Text>
             </View>
 
-            {/* Venue Pill */}
             {event.venue_name ? (
-              <View
-                style={[
-                  styles.metaPill,
-                  styles.venuePill,
-                  {
-                    backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
-                    borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
-                    borderWidth: 1.5,
-                  },
-                ]}
-              >
-                <NativeIcon name="map-pin" size={12} color={dark ? '#f59e0b' : '#d97706'} />
-                <Text
-                  numberOfLines={1}
-                  style={[styles.metaPillText, { color: dark ? '#e2e8f0' : '#334155' }]}
-                >
-                  {event.venue_name}
-                </Text>
-              </View>
+              <>
+                <Text style={{ color: dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)', fontSize: 11 }}>•</Text>
+                <View style={styles.metaInlineItem}>
+                  <NativeIcon name="map-pin" size={12} color={dark ? '#f59e0b' : '#d97706'} strokeWidth={2.4} />
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.metaInlineText, { color: dark ? '#cbd5e1' : '#475569' }]}
+                  >
+                    {event.venue_name}
+                  </Text>
+                </View>
+              </>
             ) : null}
           </View>
 
-          {/* Tactile Liquid Glass View Action */}
-          <View
-            style={[
-              styles.viewPill,
-              {
-                backgroundColor: dark ? 'rgba(249,115,22,0.22)' : 'rgba(249,115,22,0.14)',
-                borderColor: dark ? 'rgba(249,115,22,0.35)' : 'rgba(249,115,22,0.30)',
-              },
-            ]}
-          >
+          {/* Minimal Tactile Action Indicator */}
+          <View style={styles.inlineActionWrap}>
             <Text style={styles.viewPillText}>View</Text>
-            <NativeIcon name="arrow-right" size={11} color="#ea580c" />
+            <NativeIcon name="arrow-right" size={12} color="#ea580c" strokeWidth={2.4} />
           </View>
         </View>
       </View>
@@ -216,6 +190,11 @@ function HappeningTodayNativeComponent({
   const cardWidth = Math.min(380, Math.round(windowWidth * 0.85));
   const listRef = useRef<FlatList<EventFeedItem>>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useFonts({
+    'CormorantGaramond-BoldItalic': require('../../assets/fonts/CormorantGaramond_700Bold_Italic.ttf'),
+    'CormorantGaramond-SemiBoldItalic': require('../../assets/fonts/CormorantGaramond_600SemiBold_Italic.ttf'),
+  });
 
   const items = useMemo(() => events.slice(0, 10), [events]);
 
@@ -260,7 +239,7 @@ function HappeningTodayNativeComponent({
             {
               backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
               borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
-              borderWidth: 1.5,
+              borderWidth: 1,
             },
           ]}
         >
@@ -315,11 +294,17 @@ function HappeningTodayNativeComponent({
                   width: cardWidth,
                   backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
                   borderColor: dark ? glass.dark.border : glass.light.border,
-                  borderWidth: 1.5,
+                  borderWidth: 1,
                 },
               ]}
             >
-              <SpecularTopRim dark={dark} height={1.5} />
+              <BlurView
+                pointerEvents="none"
+                intensity={dark ? 45 : 65}
+                tint={dark ? 'dark' : 'light'}
+                style={StyleSheet.absoluteFill}
+              />
+              <SpecularTopRim dark={dark} height={1} />
               <GlassSheen dark={dark} />
               <View style={styles.trailingBannerArea}>
                 <View style={styles.trailingArrowCircle}>
@@ -345,13 +330,13 @@ function HappeningTodayNativeComponent({
                     Tap to view complete list
                   </Text>
                 </View>
-                <View style={styles.viewPill}>
-                  <Text style={styles.viewPillText}>View All</Text>
-                  <NativeIcon name="arrow-right" size={11} color="#ea580c" />
+                <View style={styles.trailingActionRow}>
+                  <Text style={styles.trailingActionText}>View All</Text>
+                  <NativeIcon name="arrow-right" size={12} color="#ea580c" />
                 </View>
               </View>
             </Pressable>
-          ) : null
+          ) : undefined
         }
       />
 
@@ -368,45 +353,82 @@ function HappeningTodayNativeComponent({
       >
         <View style={styles.modalOverlay}>
           <Pressable
-            style={styles.modalBackdrop}
+            style={StyleSheet.absoluteFill}
             onPress={() => setIsModalOpen(false)}
             accessibilityRole="button"
             accessibilityLabel="Close happening today modal"
-          />
+          >
+            <BlurView
+              intensity={dark ? 30 : 20}
+              tint={dark ? 'dark' : 'systemMaterialDark'}
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: dark ? 'rgba(0,0,0,0.85)' : 'rgba(15,23,42,0.65)' },
+              ]}
+            />
+          </Pressable>
 
           <View
             style={[
               styles.modalSheet,
               {
-                backgroundColor: 'transparent',
-                borderColor: dark ? glass.dark.border : glass.light.border,
-                borderWidth: 1.5,
+                backgroundColor: dark ? 'rgba(24, 26, 36, 0.82)' : 'rgba(255, 255, 255, 0.86)',
+                borderTopColor: dark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.95)',
+                borderTopWidth: 1.5,
+                borderLeftWidth: 0,
+                borderRightWidth: 0,
+                borderBottomWidth: 0,
               },
             ]}
           >
             {/* Native Hardware Blur Backdrop */}
             <BlurView
               pointerEvents="none"
-              intensity={dark ? 70 : 85}
+              intensity={dark ? 85 : 95}
               tint={dark ? 'dark' : 'light'}
-              blurMethod="none"
               style={StyleSheet.absoluteFill}
             />
 
-            {/* Translucent Frosted Tint Overlay */}
-            <View
-              pointerEvents="none"
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: dark ? glass.dark.modalBg : glass.light.modalBg },
-              ]}
-            />
+            {/* Translucent Frosted Glass & Caustic Mesh Gradient matching Student Website */}
+            <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width="100%" height="100%">
+              <Defs>
+                <LinearGradient id="modal-glass-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <Stop
+                    offset="0%"
+                    stopColor={dark ? '#1a1d26' : '#ffffff'}
+                    stopOpacity={dark ? 0.98 : 0.96}
+                  />
+                  <Stop
+                    offset="50%"
+                    stopColor={dark ? '#14161f' : '#ffffff'}
+                    stopOpacity={dark ? 0.96 : 0.94}
+                  />
+                  <Stop
+                    offset="100%"
+                    stopColor={dark ? '#12141b' : '#ffffff'}
+                    stopOpacity={dark ? 0.95 : 0.92}
+                  />
+                </LinearGradient>
+                <RadialGradient id="caustic-orange" cx="85%" cy="8%" rx="55%" ry="45%">
+                  <Stop offset="0%" stopColor="#f97316" stopOpacity="0.22" />
+                  <Stop offset="60%" stopColor="#f59e0b" stopOpacity="0.10" />
+                  <Stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+                </RadialGradient>
+                <RadialGradient id="caustic-blue" cx="12%" cy="92%" rx="55%" ry="45%">
+                  <Stop offset="0%" stopColor="#38bdf8" stopOpacity="0.18" />
+                  <Stop offset="60%" stopColor="#6366f1" stopOpacity="0.08" />
+                  <Stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+                </RadialGradient>
+              </Defs>
+              <SvgRect width="100%" height="100%" fill="url(#modal-glass-gradient)" />
+              <SvgRect width="100%" height="100%" fill="url(#caustic-orange)" />
+              <SvgRect width="100%" height="100%" fill="url(#caustic-blue)" />
+            </Svg>
 
-            <SpecularTopRim dark={dark} height={1.5} />
-
-            {/* Ambient Caustic Mesh for optical crystal refraction matching website */}
-            <View pointerEvents="none" style={styles.causticTopRight} />
-            <View pointerEvents="none" style={styles.causticBottomLeft} />
+            <SpecularTopRim dark={dark} height={1} />
 
             {/* Drag Handle Bar */}
             <View style={styles.dragBarContainer}>
@@ -788,9 +810,22 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 24,
-    borderWidth: 1.5,
+    borderTopWidth: 1.6,
+    borderLeftWidth: 1.1,
+    borderRightWidth: 1.1,
+    borderBottomWidth: 1.0,
     overflow: 'hidden',
-    ...shadows.glass,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 14,
+      },
+      android: {
+        elevation: 0,
+      },
+    }),
   },
   imageBox: {
     width: '100%',
@@ -848,7 +883,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     justifyContent: 'space-between',
-    borderTopWidth: 1,
   },
   eventName: {
     fontFamily: typography.headingFamily,
@@ -863,54 +897,51 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  metaPillsGroup: {
+  metaInlineGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     flex: 1,
     overflow: 'hidden',
   },
-  metaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  venuePill: {
-    flex: 1,
-    maxWidth: 160,
-  },
-  metaPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  viewPill: {
+  metaInlineItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-    shadowColor: '#f97316',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 1,
+    flexShrink: 1,
+  },
+  metaInlineText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  inlineActionWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   viewPillText: {
     color: '#ea580c',
-    fontSize: 11,
-    fontWeight: '900',
+    fontSize: 12,
+    fontWeight: '800',
   },
   trailingCard: {
     borderRadius: 24,
-    borderWidth: 1.5,
+    borderTopWidth: 1.6,
+    borderLeftWidth: 1.1,
+    borderRightWidth: 1.1,
+    borderBottomWidth: 1.0,
     overflow: 'hidden',
-    ...shadows.glass,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 14,
+      },
+      android: {
+        elevation: 0,
+      },
+    }),
   },
   trailingBannerArea: {
     width: '100%',
@@ -958,6 +989,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
   },
+  trailingActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  trailingActionText: {
+    color: '#ea580c',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -971,10 +1013,13 @@ const styles = StyleSheet.create({
     maxHeight: '78%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
-    ...shadows.glass,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 24,
   },
   causticTopRight: {
     position: 'absolute',
@@ -1139,11 +1184,10 @@ const styles = StyleSheet.create({
   },
   modalItemTitle: {
     flex: 1,
-    fontFamily: typography.headingFamily,
-    fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-    lineHeight: 22,
+    fontFamily: typography.cormorantItalic,
+    fontSize: 21,
+    lineHeight: 26,
+    letterSpacing: 0,
   },
   modalArrowBox: {
     width: 20,

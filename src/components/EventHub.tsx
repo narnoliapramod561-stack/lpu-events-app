@@ -21,6 +21,8 @@ import Svg, {
 import type { CategoryFeedItem, EventFeedItem } from '../api/types';
 import { PublicApiClient } from '../api/publicApi';
 import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
+import { BlurView } from 'expo-blur';
+import { LpuGlassCard } from './LpuGlassCard';
 import { eventImageSource } from '../features/homepageModels';
 import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
 import {
@@ -187,18 +189,8 @@ function FilterTier({
     <View style={styles.tier}>
       <View style={styles.tierHeader}>
         <View style={styles.tierTitle}>
-          <View
-            style={[
-              styles.tierIcon,
-              {
-                backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.70)',
-                borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.90)',
-              },
-            ]}
-          >
-            <NativeIcon name={icon} size={14} color={dark ? '#ffffff' : '#1e293b'} />
-          </View>
-          <Text style={[styles.tierLabel, { color: dark ? '#ffffff' : '#0f172a' }]}>
+          <NativeIcon name={icon} size={13} color={dark ? '#ff7f24' : '#ea580c'} strokeWidth={2.4} />
+          <Text style={[styles.tierLabel, { color: dark ? '#f1f5f9' : '#0f172a' }]}>
             {title.toUpperCase()}
           </Text>
         </View>
@@ -210,16 +202,10 @@ function FilterTier({
             onPress={onClear}
             accessibilityRole="button"
             accessibilityLabel={`Clear ${title} filter`}
-            style={[
-              styles.tierClearBtn,
-              {
-                backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.70)',
-                borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.90)',
-              },
-            ]}
+            style={styles.tierClearBtn}
           >
-            <NativeIcon name="x" size={11} color={dark ? '#cbd5e1' : '#475569'} />
-            <Text style={[styles.tierClearText, { color: dark ? '#cbd5e1' : '#475569' }]}>
+            <NativeIcon name="x" size={11} color={dark ? '#cbd5e1' : '#64748b'} />
+            <Text style={[styles.tierClearText, { color: dark ? '#cbd5e1' : '#64748b' }]}>
               Clear
             </Text>
           </Pressable>
@@ -310,12 +296,12 @@ function NativeDatePickerModal({
             {
               backgroundColor: dark ? glass.dark.modalBg : glass.light.modalBg,
               borderColor: dark ? glass.dark.border : glass.light.border,
-              borderWidth: 1.5,
+              borderWidth: 1,
             },
           ]}
           onPress={(e) => e.stopPropagation()}
         >
-          <SpecularTopRim dark={dark} height={1.5} />
+          <SpecularTopRim dark={dark} height={1} />
           {/* Modal Header */}
           <View style={styles.modalHeader}>
             <View style={{ gap: 2 }}>
@@ -482,151 +468,16 @@ const EventCard = memo(
     dark: boolean;
     onSelectEvent: (id: string) => void;
   }) {
-    const palette = dark ? colors.dark : colors.light;
-    const timeFormatted = formatEventTime(event.start_at) || 'Time TBA';
-    const categoryName = (event.categories?.name || 'CAMPUS EVENT').toUpperCase();
-    const orgName = event.organizations?.name || 'LPU Organization';
-
     return (
-      <Pressable
+      <LpuGlassCard
+        event={event}
+        dark={dark}
         onPress={() => onSelectEvent(event.id)}
-        accessibilityRole="button"
-        accessibilityLabel={`View details for ${event.name}`}
-        style={[
-          styles.card,
-          {
-            backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
-            borderColor: dark ? glass.dark.border : glass.light.border,
-            borderWidth: 1.5,
-          },
-        ]}
-      >
-        <SpecularTopRim dark={dark} height={1.5} />
-        <GlassSheen dark={dark} />
-        {/* Event Cover Image */}
-        <View style={styles.poster}>
-          <Image
-            source={eventImageSource(event) ?? undefined}
-            resizeMode="contain"
-            style={styles.posterImage}
-          />
-          <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width="100%" height="100%">
-            <LinearGradient id={`card-grad-${event.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <Stop offset="0%" stopColor="transparent" stopOpacity={0} />
-              <Stop offset="50%" stopColor="transparent" stopOpacity={0} />
-              <Stop offset="100%" stopColor="rgba(0,0,0,0.65)" stopOpacity={1} />
-            </LinearGradient>
-            <SvgRect width="100%" height="100%" fill={`url(#card-grad-${event.id})`} />
-          </Svg>
-
-          {/* Trending Badge */}
-          {event.is_trending ? (
-            <View style={styles.trendingBadge}>
-              <View style={styles.trendingDot} />
-              <Text style={styles.trendingText}>🔥 Trending</Text>
-            </View>
-          ) : null}
-
-          {/* Category Pill on Image */}
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryBadgeText}>{categoryName}</Text>
-          </View>
-        </View>
-
-        {/* Event Body */}
-        <View style={styles.body}>
-          <Text
-            numberOfLines={2}
-            style={[styles.name, { color: dark ? '#ffffff' : '#c2410c' }]}
-          >
-            {event.name}
-          </Text>
-
-          {/* Metadata Stack: Date, Schedule, Venue */}
-          <View style={styles.metadata}>
-            <MetaRow
-              icon="calendar"
-              label="DATE"
-              value={formatEventDateRange(event.start_at, event.end_at)}
-              dark={dark}
-              accent="#ea580c"
-            />
-            <MetaRow
-              icon="clock"
-              label="SCHEDULE"
-              value={timeFormatted}
-              dark={dark}
-              accent="#f59e0b"
-            />
-            <MetaRow
-              icon="map-pin"
-              label="VENUE"
-              value={event.venue_name || 'LPU Campus'}
-              dark={dark}
-              accent="#f43f5e"
-            />
-          </View>
-
-          {/* Footer: Organization & View Details */}
-          <View
-            style={[
-              styles.cardFooter,
-              { borderTopColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(148,163,184,0.22)' },
-            ]}
-          >
-            <View style={styles.orgWrap}>
-              <Text style={[styles.orgLabel, { color: palette.mutedText }]}>
-                By <Text style={[styles.orgName, { color: palette.text }]}>{orgName}</Text>
-              </Text>
-            </View>
-            <View style={styles.detailsButton}>
-              <Text style={styles.detailsText}>View Details</Text>
-              <NativeIcon name="arrow-right" size={12} color="#ffffff" />
-            </View>
-          </View>
-        </View>
-      </Pressable>
+      />
     );
   },
 );
 EventCard.displayName = 'EventCard';
-
-function MetaRow({
-  icon,
-  label,
-  value,
-  dark,
-  accent,
-}: {
-  icon: IconName;
-  label: string;
-  value: string;
-  dark: boolean;
-  accent: string;
-}) {
-  const palette = dark ? colors.dark : colors.light;
-  return (
-    <View style={styles.metaRow}>
-      <View
-        style={[
-          styles.metaIcon,
-          {
-            backgroundColor: dark ? 'rgba(255,255,255,0.06)' : `${accent}18`,
-            borderColor: dark ? 'rgba(255,255,255,0.10)' : `${accent}30`,
-          },
-        ]}
-      >
-        <NativeIcon name={icon} size={15} color={dark ? '#fbbf24' : accent} />
-      </View>
-      <View style={styles.metaCopy}>
-        <Text style={[styles.metaLabel, { color: palette.mutedText }]}>{label}</Text>
-        <Text numberOfLines={1} style={[styles.metaValue, { color: palette.text }]}>
-          {value}
-        </Text>
-      </View>
-    </View>
-  );
-}
 
 function EventHubComponent({
   dark,
@@ -693,13 +544,6 @@ function EventHubComponent({
     return () => clearTimeout(timer);
   }, [query]);
 
-  // If homepage was refreshed while user had filters active, re-query the filtered feed
-  useEffect(() => {
-    if (category !== 'all' || subcategory || pricing !== 'ALL' || selectedDate || debouncedQuery.trim().length >= 2) {
-      void load(0, false);
-    }
-  }, [initialEvents]);
-
   const filterParams = useMemo(
     () => ({
       ...(category !== 'all' ? { category_id: category } : {}),
@@ -749,9 +593,15 @@ function EventHubComponent({
     [debouncedQuery, filterParams],
   );
 
+  // If homepage was refreshed while user had filters active, re-query the filtered feed
+  useEffect(() => {
+    if (category !== 'all' || subcategory || pricing !== 'ALL' || selectedDate || debouncedQuery.trim().length >= 2) {
+      void load(0, false);
+    }
+  }, [initialEvents, load]);
+
   useEffect(() => {
     if (!trending) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       void load(0, false);
     }
   }, [load, trending]);
@@ -914,37 +764,24 @@ function EventHubComponent({
         sectionOffset.current = e.nativeEvent.layout.y;
       }}
     >
-      {/* 3-Tier Filter Card — Ultra-Premium VisionOS Glass Formula matching student website */}
+      {/* 3-Tier Filter Suite — De-Boxed Fluid Ambient Glass */}
       <View
         style={[
           styles.filterPanel,
           {
-            backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
-            borderColor: dark ? glass.dark.border : glass.light.border,
-            borderWidth: 1.5,
+            backgroundColor: dark ? 'rgba(20, 22, 30, 0.40)' : 'rgba(255, 255, 255, 0.35)',
+            borderColor: dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.25)',
+            borderWidth: 1,
           },
         ]}
       >
-        <SpecularTopRim dark={dark} height={1.5} />
-        {/* Optical Ambient Caustics Mesh */}
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Svg width="100%" height="100%">
-            <Defs>
-              <LinearGradient id={dark ? 'c-tr-dark' : 'c-tr-light'} x1="100%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0%" stopColor="#ea580c" stopOpacity={dark ? 0.18 : 0.14} />
-                <Stop offset="50%" stopColor="#f59e0b" stopOpacity={dark ? 0.08 : 0.06} />
-                <Stop offset="100%" stopColor="transparent" stopOpacity={0} />
-              </LinearGradient>
-              <LinearGradient id={dark ? 'c-bl-dark' : 'c-bl-light'} x1="0%" y1="100%" x2="100%" y2="0%">
-                <Stop offset="0%" stopColor="#38bdf8" stopOpacity={dark ? 0.12 : 0.09} />
-                <Stop offset="50%" stopColor="#6366f1" stopOpacity={dark ? 0.06 : 0.05} />
-                <Stop offset="100%" stopColor="transparent" stopOpacity={0} />
-              </LinearGradient>
-            </Defs>
-            <SvgRect x="40%" y="-15%" width="75%" height="55%" rx={90} fill={`url(#${dark ? 'c-tr-dark' : 'c-tr-light'})`} />
-            <SvgRect x="-25%" y="65%" width="75%" height="55%" rx={90} fill={`url(#${dark ? 'c-bl-dark' : 'c-bl-light'})`} />
-          </Svg>
-        </View>
+        <BlurView
+          pointerEvents="none"
+          intensity={dark ? 40 : 55}
+          tint={dark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+        />
+        <SpecularTopRim dark={dark} height={1} intensity={0.4} />
 
         {/* ─── TIER 1: SCHEDULE ─── */}
         <FilterTier
@@ -1134,17 +971,7 @@ function EventHubComponent({
         >
           <View style={styles.tierHeader}>
             <View style={styles.tierTitle}>
-              <View
-                style={[
-                  styles.tierIcon,
-                  {
-                    backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.70)',
-                    borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.90)',
-                  },
-                ]}
-              >
-                <NativeIcon name="sparkles" size={14} color={dark ? '#ffffff' : '#1e293b'} />
-              </View>
+              <NativeIcon name="sparkles" size={14} color="#ea580c" />
               <Text style={[styles.tierLabel, { color: dark ? '#ffffff' : '#0f172a' }]}>
                 CATEGORIES
               </Text>
@@ -1583,11 +1410,10 @@ const styles = StyleSheet.create({
     color: '#ff6b00',
   },
   filterPanel: {
-    borderRadius: 28,
-    borderWidth: 1.5,
+    borderRadius: radii.xl,
+    borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
-    ...shadows.glass,
   },
   tier: {
     paddingHorizontal: 16,
@@ -1605,31 +1431,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  tierIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   tierLabel: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
   },
   tierClearBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   tierClearText: {
-    fontSize: 10.5,
-    fontWeight: '900',
+    fontSize: 11,
+    fontWeight: '700',
   },
   hairlineDividerWrap: {
     width: '100%',
@@ -1699,11 +1515,11 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   chip: {
-    height: 36,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    height: 33,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1720,24 +1536,24 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   inactiveLightChip: {
-    backgroundColor: 'rgba(255,255,255,0.86)',
-    borderColor: 'rgba(255,255,255,0.95)',
-    borderWidth: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.68)',
+    borderColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
   },
   inactiveDarkChip: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.20,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
   },
   scheduleChipLabel: {
     fontSize: 11.5,
@@ -1783,10 +1599,10 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   catChip: {
-    height: 36,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    height: 33,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1916,7 +1732,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     borderRadius: 24,
-    borderWidth: 1.5,
+    borderWidth: 1,
     padding: 20,
     gap: 16,
     shadowColor: '#000000',
@@ -2010,7 +1826,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   dayCellToday: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#ea580c',
   },
   dayCellText: {
@@ -2059,7 +1875,7 @@ const styles = StyleSheet.create({
   headingLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(148,163,184,0.35)',
+    backgroundColor: 'rgba(148,163,184,0.18)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
@@ -2068,26 +1884,23 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   diamond: {
-    width: 6,
-    height: 6,
-    transform: [{ rotate: '45deg' }],
-    backgroundColor: 'rgba(255,107,0,0.30)',
-    borderWidth: 1,
-    borderColor: '#ff6b00',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#ff6b00',
+    opacity: 0.75,
   },
   card: {
     borderRadius: 22,
-    borderWidth: 1.5,
+    borderWidth: 1,
     overflow: 'hidden',
     ...shadows.glass,
   },
   poster: {
     width: '100%',
     aspectRatio: 16 / 9,
-    backgroundColor: 'rgba(100,116,139,0.08)',
     position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
   },
   posterImage: {
     width: '100%',
@@ -2143,41 +1956,30 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   metadata: {
-    gap: 8,
+    gap: 6,
+    paddingVertical: 2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  metaIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metaCopy: {
-    flex: 1,
-    gap: 1,
+    gap: 7,
   },
   metaLabel: {
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1.1,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   metaValue: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 12.5,
+    fontWeight: '700',
+    flex: 1,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 4,
+    paddingTop: 6,
   },
   orgWrap: {
     flex: 1,
@@ -2190,22 +1992,15 @@ const styles = StyleSheet.create({
   orgName: {
     fontWeight: '900',
   },
-  detailsButton: {
+  detailsIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#ff6b00',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    shadowColor: '#f97316',
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 2,
+    gap: 4,
+    paddingVertical: 4,
   },
   detailsText: {
-    color: '#ffffff',
-    fontSize: 11,
+    color: '#ea580c',
+    fontSize: 12.5,
     fontWeight: '800',
   },
   moreButton: {

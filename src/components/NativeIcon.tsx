@@ -8,7 +8,8 @@ export type IconName =
   | 'home' | 'users' | 'info' | 'mail' | 'copy' | 'check' | 'x' | 'refresh'
   | 'shield-alert' | 'shield-check' | 'qrcode' | 'whatsapp' | 'award' | 'briefcase'
   | 'graduation-cap' | 'heart' | 'lightbulb' | 'chevron-left' | 'chevron-right' | 'arrow-up-right'
-  | 'book-open' | 'flag' | 'shield' | 'hand-heart' | 'shirt' | 'more-horizontal' | 'layers';
+  | 'book-open' | 'flag' | 'shield' | 'hand-heart' | 'shirt' | 'more-horizontal' | 'layers' | 'help-circle' | 'check-circle'
+  | 'plus' | 'minus';
 
 export function NativeIcon({ name, size = 16, color = '#0f172a', strokeWidth = 2 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   const common = { stroke: color, strokeWidth, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' as const };
@@ -38,6 +39,7 @@ export function NativeIcon({ name, size = 16, color = '#0f172a', strokeWidth = 2
       case 'mail': return <><Rect {...common} x="2" y="4" width="20" height="16" rx="2" /><Path {...common} d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></>;
       case 'copy': return <><Rect {...common} x="9" y="9" width="13" height="13" rx="2" ry="2" /><Path {...common} d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>;
       case 'check': return <Polyline {...common} points="20 6 9 17 4 12" />;
+      case 'check-circle': return <><Circle {...common} cx="12" cy="12" r="10" /><Polyline {...common} points="9 12 11 14 15 10" /></>;
       case 'x': return <><Line {...common} x1="18" y1="6" x2="6" y2="18" /><Line {...common} x1="6" y1="6" x2="18" y2="18" /></>;
       case 'refresh': return <><Path {...common} d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><Path {...common} d="M3 3v5h5" /><Path {...common} d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><Path {...common} d="M16 16h5v5" /></>;
       case 'shield-alert': return <><Path {...common} d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><Line {...common} x1="12" y1="8" x2="12" y2="12" /><Line {...common} x1="12" y1="16" x2="12.01" y2="16" /></>;
@@ -58,6 +60,9 @@ export function NativeIcon({ name, size = 16, color = '#0f172a', strokeWidth = 2
       case 'shirt': return <Path {...common} d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />;
       case 'more-horizontal': return <><Circle {...common} cx="12" cy="12" r="1.5" /><Circle {...common} cx="19" cy="12" r="1.5" /><Circle {...common} cx="5" cy="12" r="1.5" /></>;
       case 'layers': return <><Path {...common} d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><Path {...common} d="m22 12.5-8.58 3.91a2 2 0 0 1-1.66 0L3.18 12.5" /><Path {...common} d="m22 17.5-8.58 3.91a2 2 0 0 1-1.66 0L3.18 17.5" /></>;
+      case 'help-circle': return <><Circle {...common} cx="12" cy="12" r="10" /><Path {...common} d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><Line {...common} x1="12" y1="17" x2="12.01" y2="17" /></>;
+      case 'plus': return <><Line {...common} x1="12" y1="5" x2="12" y2="19" /><Line {...common} x1="5" y1="12" x2="19" y2="12" /></>;
+      case 'minus': return <Line {...common} x1="5" y1="12" x2="19" y2="12" />;
     }
   })();
   return <Svg width={size} height={size} viewBox="0 0 24 24">{content}</Svg>;

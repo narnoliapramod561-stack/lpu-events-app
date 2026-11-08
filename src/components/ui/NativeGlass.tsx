@@ -4,6 +4,7 @@ import {
   View,
   ViewStyle,
   StyleProp,
+  Platform,
 } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect as SvgRect, Stop, RadialGradient } from 'react-native-svg';
 import { BlurView, type BlurMethod } from 'expo-blur';
@@ -22,18 +23,18 @@ export interface SpecularTopRimProps {
  */
 export function SpecularTopRim({
   dark = false,
-  intensity = 1,
-  height = 1.5,
+  intensity = 0.6,
+  height = 1,
   style,
 }: SpecularTopRimProps) {
   const rawId = useId();
   const gradId = `rim-${dark ? 'd' : 'l'}-${rawId.replace(/:/g, '')}`;
   const centerColor = dark
-    ? `rgba(255, 255, 255, ${0.45 * intensity})`
-    : `rgba(255, 255, 255, ${0.95 * intensity})`;
+    ? `rgba(255, 255, 255, ${0.28 * intensity})`
+    : `rgba(255, 255, 255, ${0.60 * intensity})`;
   const midColor = dark
-    ? `rgba(255, 255, 255, ${0.20 * intensity})`
-    : `rgba(255, 255, 255, ${0.65 * intensity})`;
+    ? `rgba(255, 255, 255, ${0.12 * intensity})`
+    : `rgba(255, 255, 255, ${0.35 * intensity})`;
 
   return (
     <View
@@ -70,20 +71,19 @@ export function GlassSheen({ dark = false }: { dark?: boolean }) {
             id={gradId}
             cx="50%"
             cy="0%"
-            rx="85%"
-            ry="45%"
+            r="80%"
             fx="50%"
             fy="0%"
           >
             <Stop
               offset="0%"
               stopColor="#ffffff"
-              stopOpacity={dark ? 0.08 : 0.45}
+              stopOpacity={dark ? 0.03 : 0.09}
             />
             <Stop
               offset="60%"
               stopColor="#ffffff"
-              stopOpacity={dark ? 0.02 : 0.08}
+              stopOpacity={dark ? 0.01 : 0.02}
             />
             <Stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
           </RadialGradient>
@@ -93,6 +93,106 @@ export function GlassSheen({ dark = false }: { dark?: boolean }) {
     </View>
   );
 }
+
+export interface LiquidGlassCardProps {
+  dark?: boolean;
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
+  borderRadius?: number;
+  hasSheen?: boolean;
+  hasRim?: boolean;
+  hasBlur?: boolean;
+  intensity?: number;
+  tintColor?: string;
+  borderColor?: string;
+  shadow?: boolean;
+}
+
+/**
+ * Enterprise Liquid Glass Card with Multi-Tier Wrapper Architecture.
+ *
+ * Solves Android 1px subpixel clipping fringing, inner-box shadow artifacts,
+ * and elevation clipping by separating shadow casting, radius masking,
+ * vector specular rims, and hairline stroke overlays into dedicated render layers.
+ */
+export function LiquidGlassCard({
+  dark = false,
+  children,
+  style,
+  contentStyle,
+  borderRadius = radii.lg,
+  hasSheen = true,
+  hasRim = true,
+  hasBlur = false,
+  intensity = 60,
+  tintColor,
+  borderColor,
+  shadow = true,
+}: LiquidGlassCardProps) {
+  const defaultBg = dark ? glass.dark.panelBg : glass.light.panelBg;
+  const defaultBorder = dark ? glass.dark.border : glass.light.border;
+
+  return (
+    <View style={[shadow ? styles.cardShadowTier : undefined, style]}>
+      {/* Tier 2: Rounded Mask Container */}
+      <View
+        style={[
+          styles.cardMaskTier,
+          {
+            borderRadius,
+            backgroundColor: hasBlur ? 'transparent' : (tintColor ?? defaultBg),
+          },
+        ]}
+      >
+        {hasBlur && (
+          <BlurView
+            pointerEvents="none"
+            intensity={intensity}
+            tint={dark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+        {hasBlur && (
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: tintColor ?? (dark ? 'rgba(18, 20, 28, 0.45)' : 'rgba(255, 255, 255, 0.40)'),
+              },
+            ]}
+          />
+        )}
+
+        {hasSheen && <GlassSheen dark={dark} />}
+        {hasRim && <SpecularTopRim dark={dark} height={1.2} intensity={0.9} />}
+
+        {/* Tier 4: Hairline Stroke Overlay — cleanly sits on top without subpixel clipping fringing */}
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              borderRadius,
+              borderWidth: 1,
+              borderColor: borderColor ?? defaultBorder,
+            },
+          ]}
+        />
+
+        {/* Tier 5: Content Layer */}
+        {contentStyle ? (
+          <View style={contentStyle}>{children}</View>
+        ) : (
+          children
+        )}
+      </View>
+    </View>
+  );
+}
+
+export const AndroidLiquidGlassCard = LiquidGlassCard;
 
 export interface NativeGlassSurfaceProps {
   dark: boolean;
@@ -104,7 +204,7 @@ export interface NativeGlassSurfaceProps {
   hasBlur?: boolean;
   intensity?: number;
   blurMethod?: BlurMethod;
-  blurTarget?: React.RefObject<View | null>;
+  blurTarget?: React.RefObject<React.ElementRef<typeof View> | null>;
   tintColor?: string;
   borderColor?: string;
 }
@@ -130,33 +230,84 @@ export function NativeGlassSurface({
 }: NativeGlassSurfaceProps) {
   const defaultBg = dark ? glass.dark.panelBg : glass.light.panelBg;
   const defaultBorder = dark ? glass.dark.border : glass.light.border;
-  const effectiveBlurMethod: BlurMethod = blurTarget?.current
-    ? (blurMethod ?? 'dimezisBlurViewSdk31Plus')
-    : 'none';
+
+  const flattened = StyleSheet.flatten(style) || {};
+  const {
+    margin,
+    marginTop,
+    marginBottom,
+    marginLeft,
+    marginRight,
+    marginHorizontal,
+    marginVertical,
+    flex,
+    flexGrow,
+    flexShrink,
+    alignSelf,
+    width,
+    height,
+    minWidth,
+    minHeight,
+    maxWidth,
+    maxHeight,
+    position,
+    top,
+    bottom,
+    left,
+    right,
+    zIndex,
+    ...restInnerStyle
+  } = flattened as ViewStyle;
+
+  const outerLayoutStyle: ViewStyle = {
+    margin,
+    marginTop,
+    marginBottom,
+    marginLeft,
+    marginRight,
+    marginHorizontal,
+    marginVertical,
+    flex,
+    flexGrow,
+    flexShrink,
+    alignSelf,
+    width,
+    height,
+    minWidth,
+    minHeight,
+    maxWidth,
+    maxHeight,
+    position,
+    top,
+    bottom,
+    left,
+    right,
+    zIndex,
+  };
 
   return (
-    <View
-      style={[
-        styles.panelBase,
-        {
-          borderRadius,
-          borderColor: borderColor ?? defaultBorder,
-          backgroundColor: hasBlur ? 'transparent' : (tintColor ?? defaultBg),
-        },
-        style,
-      ]}
-    >
-      {hasBlur && (
-        <>
+    <View style={[styles.panelShadowTier, outerLayoutStyle]}>
+      <View
+        style={[
+          styles.panelMaskTier,
+          {
+            borderRadius,
+            backgroundColor: hasBlur ? 'transparent' : (tintColor ?? defaultBg),
+          },
+          restInnerStyle,
+        ]}
+      >
+        {hasBlur && (
           <BlurView
             pointerEvents="none"
             intensity={intensity}
             tint={dark ? 'dark' : 'light'}
-            blurMethod={effectiveBlurMethod}
             blurTarget={blurTarget}
+            blurMethod={blurTarget ? (blurMethod ?? 'dimezisBlurViewSdk31Plus') : undefined}
             style={StyleSheet.absoluteFill}
           />
-          {/* Subtle translucent tint over the blur so text remains crisp */}
+        )}
+        {hasBlur && (
           <View
             pointerEvents="none"
             style={[
@@ -166,12 +317,25 @@ export function NativeGlassSurface({
               },
             ]}
           />
-        </>
-      )}
+        )}
 
-      {hasSheen && <GlassSheen dark={dark} />}
-      {hasRim && <SpecularTopRim dark={dark} />}
-      {children}
+        {hasSheen && <GlassSheen dark={dark} />}
+        {hasRim && <SpecularTopRim dark={dark} />}
+
+        {/* Outer Hairline Stroke Overlay: Eliminates the 1px inner-box shadow artifact on Android */}
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              borderRadius,
+              borderWidth: 1,
+              borderColor: borderColor ?? defaultBorder,
+            },
+          ]}
+        />
+        {children}
+      </View>
     </View>
   );
 }
@@ -184,7 +348,7 @@ export interface GlassPanelProps {
   hasSheen?: boolean;
   hasRim?: boolean;
   hasBlur?: boolean;
-  blurTarget?: React.RefObject<View | null>;
+  blurTarget?: React.RefObject<React.ElementRef<typeof View> | null>;
 }
 
 /**
@@ -256,15 +420,44 @@ const styles = StyleSheet.create({
     zIndex: 10,
     overflow: 'hidden',
   },
-  panelBase: {
-    borderWidth: 1.5,
+  panelShadowTier: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 14,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  panelMaskTier: {
     overflow: 'hidden',
     position: 'relative',
-    ...shadows.glass,
+  },
+  cardShadowTier: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.06,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  cardMaskTier: {
+    overflow: 'hidden',
+    position: 'relative',
+    width: '100%',
   },
   titleIsland: {
     borderRadius: radii.pill,
-    borderWidth: 1.5,
+    borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 6,
     flexDirection: 'row',

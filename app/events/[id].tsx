@@ -1,17 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  GestureResponderEvent,
+  Dimensions,
   Image,
-  ImageBackground,
+  LayoutAnimation,
+  Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  UIManager,
   View,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PublicApiClient } from '../../src/api/publicApi';
 import type { EventDetails } from '../../src/api/types';
 import { eventImageSource } from '../../src/features/homepageModels';
@@ -21,9 +30,13 @@ import { BlurView } from 'expo-blur';
 import { NativeIcon, type IconName } from '../../src/components/NativeIcon';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { isSafeExternalUrl, openExternalUrl } from '../../src/utils/externalLinks';
+import { extractEventId } from '../../src/utils/slug';
 import { BookingDisclaimerModal } from '../../src/components/BookingDisclaimerModal';
 import { ShareModal } from '../../src/components/ShareModal';
-import { GlassSheen, SpecularTopRim } from '../../src/components/ui/NativeGlass';
+import { ZoomableImageViewer } from '../../src/components/ZoomableImageViewer';
+import { SpecularTopRim, LiquidGlassCard } from '../../src/components/ui/NativeGlass';
+import { CampusBackground } from '../../src/components/CampusBackground';
+import { EventSectionRenderer, extractSectionText } from '../../src/components/events/EventSectionRenderer';
 
 const api = new PublicApiClient();
 const dateText = (event: EventDetails) => formatEventDateRange(event.start_at, event.end_at) || 'Date to be announced';
@@ -37,6 +50,7 @@ function Skeleton({ dark }: { dark: boolean }) {
       <View style={[styles.skeletonLine, { backgroundColor: palette.surface2, width: '78%' }]} />
       <View style={[styles.skeletonLine, { backgroundColor: palette.surface2, width: '45%' }]} />
       <View style={[styles.skeletonPanel, { backgroundColor: palette.surface2 }]} />
+      <View style={[styles.skeletonOrganizer, { backgroundColor: palette.surface2 }]} />
     </View>
   );
 }
@@ -82,113 +96,76 @@ function InfoRow({
   );
 }
 
-function contentText(content: unknown): string {
-  if (typeof content === 'string') return content.trim();
-  if (content && typeof content === 'object') {
-    const record = content as Record<string, unknown>;
-    for (const key of ['text', 'description', 'body', 'markdown']) {
-      if (typeof record[key] === 'string') return (record[key] as string).trim();
-    }
-  }
-  return '';
-}
-
-function SectionContent({ content, dark }: { content: unknown; dark: boolean }) {
-  const palette = dark ? colors.dark : colors.light;
-  const text = contentText(content);
-  if (text) {
-    return (
-      <View style={styles.contentText}>
-        {text.split('\n').map((line, index) => {
-          const clean = line.trim();
-          if (!clean) return <View key={index} style={{ height: 10 }} />;
-          const bullet = /^[-•*]\s+/.test(clean);
-          const numbered = /^\d+[.)]\s+/.test(clean);
-          return (
-            <View key={index} style={bullet || numbered ? styles.listRow : undefined}>
-              {bullet ? <Text style={[styles.bullet, { color: '#ea580c' }]}>•</Text> : null}
-              <Text style={[styles.description, { color: palette.text }]}>
-                {numbered ? clean.replace(/^\d+[.)]\s+/, '') : bullet ? clean.replace(/^[-•*]\s+/, '') : clean}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-    );
-  }
-  if (content && typeof content === 'object') {
-    return (
-      <View>
-        {Object.entries(content as Record<string, unknown>).map(([key, value]) => (
-          <View
-            key={key}
-            style={[
-              styles.keyValue,
-              {
-                borderColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
-                backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-              },
-            ]}
-          >
-            <Text style={[styles.infoLabel, { color: '#ea580c' }]}>{key.replace(/_/g, ' ')}</Text>
-            <Text style={[styles.description, { color: palette.text }]}>
-              {typeof value === 'string' ? value : JSON.stringify(value)}
-            </Text>
-          </View>
-        ))}
-      </View>
-    );
-  }
-  return (
-    <Text style={[styles.description, { color: palette.mutedText }]}>
-      No detailed content has been provided for this section yet.
-    </Text>
-  );
-}
-
 export default function EventDetailsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const eventId = Array.isArray(id) ? id[0] : id ?? '';
+  const rawId = Array.isArray(id) ? id[0] : id ?? '';
+  const eventId = useMemo(() => extractEventId(rawId), [rawId]);
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 12);
   const { dark } = useTheme();
   const palette = dark ? colors.dark : colors.light;
-  const [event, setEvent] = useState<EventDetails | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // Pre-seed with existing event from memory for instant 0ms render
+  const initialEvent = useMemo(() => {
+    if (!rawId) return null;
+    const preloaded = api.getPreloadedEvent(rawId) || api.getPreloadedEvent(eventId);
+    return preloaded as EventDetails | null;
+  }, [rawId, eventId]);
+
+  const [event, setEvent] = useState<EventDetails | null>(initialEvent);
+  const [loading, setLoading] = useState(!initialEvent);
+  const [detailsLoading, setDetailsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('about');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [panelWidth, setPanelWidth] = useState(() => Dimensions.get('window').width - spacing.gutter * 2);
+  const contentPagerRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const tabsScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
 
-  // Swipe detection on the content panel to navigate tabs
-  const touchStartXRef = useRef<number | null>(null);
-  const touchStartYRef = useRef<number | null>(null);
+  // Synchronize internal state when rawId / initialEvent changes
+  useEffect(() => {
+    if (initialEvent) {
+      setEvent(initialEvent);
+    }
+  }, [initialEvent]);
 
   const load = useCallback(
     async (force = false) => {
-      if (!eventId) {
+      if (!rawId) {
         setLoading(false);
         setErrorMessage('A valid event identifier is required.');
         return;
       }
       if (force) setRefreshing(true);
-      else setLoading(true);
+      else if (!initialEvent) setLoading(true);
+      setDetailsLoading(true);
       setErrorMessage(null);
-      const result = await api.getEventDetails(eventId);
+
+      const result = await api.getEventDetails(rawId);
       if (result.data) {
         setEvent(result.data);
         setImageFailed(false);
+        // Pure analytics view tracking (debounced at edge)
+        void api.incrementEventView(result.data.id);
       } else {
-        setErrorMessage(
-          result.error.code === 'HTTP_ERROR' && result.error.status === 404
-            ? 'This event could not be found.'
-            : result.error.message,
-        );
+        if (!initialEvent) {
+          setErrorMessage(
+            result.error.code === 'HTTP_ERROR' && result.error.status === 404
+              ? 'This event could not be found.'
+              : result.error.message,
+          );
+        }
       }
       setLoading(false);
+      setDetailsLoading(false);
       setRefreshing(false);
     },
-    [eventId],
+    [rawId, initialEvent],
   );
 
   useEffect(() => {
@@ -200,18 +177,111 @@ export default function EventDetailsScreen() {
     const about = source.find(
       (item) => /about|overview/i.test(item.title) || item.section_type.toUpperCase() === 'ABOUT',
     );
+    const aboutContent = extractSectionText(about?.content) || event?.description || '';
     return [
-      { id: 'about', title: 'About the Event', content: contentText(about?.content) || event?.description || '' },
+      { id: 'about', title: 'About the Event', content: aboutContent },
       ...source
         .filter((item) => item !== about)
         .map((item) => ({ id: item.id, title: item.title, content: item.content })),
     ];
   }, [event]);
 
-  const currentSection = sections.find((item) => item.id === activeSection) ?? sections[0];
+  // Synchronize active section with pager
+  useEffect(() => {
+    if (sections.length > 0) {
+      const idx = sections.findIndex((s) => s.id === activeSection);
+      if (idx !== -1 && idx !== activeIndex) {
+        setActiveIndex(idx);
+        contentPagerRef.current?.scrollTo({ x: idx * panelWidth, animated: false });
+      }
+    }
+  }, [sections]);
+
+  // Dynamic layout measurements for ultra-smooth centering & fluid gesture tracking
+  const tabLayoutsRef = useRef<{ [key: number]: { x: number; width: number } }>({});
+  const tabsScrollWidthRef = useRef<number>(0);
+  const isProgrammaticScrollRef = useRef(false);
+
+  const handleTabLayout = useCallback((index: number, layout: { x: number; width: number }) => {
+    tabLayoutsRef.current[index] = layout;
+  }, []);
+
+  const scrollToTab = useCallback((index: number) => {
+    const layout = tabLayoutsRef.current[index];
+    const containerWidth = tabsScrollWidthRef.current || (Dimensions.get('window').width - spacing.gutter * 2);
+    if (layout) {
+      const targetX = Math.max(0, layout.x - (containerWidth - layout.width) / 2);
+      tabsScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    } else {
+      const tabEstimatedWidth = 120;
+      const targetX = Math.max(0, index * tabEstimatedWidth - (containerWidth - tabEstimatedWidth) / 2);
+      tabsScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    }
+  }, []);
+
+  const switchSection = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= sections.length) return;
+      if (index !== activeIndex) {
+        if (Platform.OS === 'ios' || Platform.OS === 'android') {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        }
+        setActiveIndex(index);
+        setActiveSection(sections[index].id);
+        scrollToTab(index);
+      }
+    },
+    [activeIndex, sections, scrollToTab],
+  );
+
+  const handleTabPress = (index: number) => {
+    if (index === activeIndex) return;
+    isProgrammaticScrollRef.current = true;
+    switchSection(index);
+    contentPagerRef.current?.scrollTo({
+      x: index * panelWidth,
+      animated: true,
+    });
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 380);
+  };
+
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (isProgrammaticScrollRef.current) return;
+      const offsetX = e.nativeEvent.contentOffset.x;
+      const index = Math.round(offsetX / panelWidth);
+      if (index >= 0 && index < sections.length && index !== activeIndex) {
+        switchSection(index);
+      }
+    },
+    [panelWidth, sections.length, activeIndex, switchSection],
+  );
+
+  const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    isProgrammaticScrollRef.current = false;
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / panelWidth);
+    if (index >= 0 && index < sections.length) {
+      switchSection(index);
+    }
+  };
+
   const externalUrl = isSafeExternalUrl(event?.external_registration_url) ? event.external_registration_url : null;
   const image = event && !imageFailed ? eventImageSource(event) : undefined;
   const categoryName = (event?.categories?.name || 'CAMPUS EVENT').toUpperCase();
+
+  const isPaid =
+    (event?.pricing_type === 'PAID' ||
+      (typeof event?.price_amount === 'number' && event.price_amount > 0)) &&
+    event?.pricing_type !== 'FREE';
+  const priceDisplay =
+    isPaid && event?.price_amount !== undefined && event?.price_amount !== null
+      ? `₹${event.price_amount}`
+      : isPaid
+      ? 'Paid'
+      : 'Free Entry';
 
   const handleBookPress = () => {
     if (externalUrl) {
@@ -229,52 +299,16 @@ export default function EventDetailsScreen() {
     else router.replace('/');
   };
 
-  // Touch swipe gesture handlers for tabs
-  const handleTouchStart = (e: GestureResponderEvent) => {
-    touchStartXRef.current = e.nativeEvent.pageX;
-    touchStartYRef.current = e.nativeEvent.pageY;
-  };
-
-  const handleTouchEnd = (e: GestureResponderEvent) => {
-    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
-    const diffX = e.nativeEvent.pageX - touchStartXRef.current;
-    const diffY = e.nativeEvent.pageY - touchStartYRef.current;
-
-    // Dominant horizontal swipe (> 45px)
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 45) {
-      const currentIndex = sections.findIndex((s) => s.id === activeSection);
-      if (diffX < 0 && currentIndex < sections.length - 1) {
-        // Swiped left -> Next tab
-        setActiveSection(sections[currentIndex + 1].id);
-      } else if (diffX > 0 && currentIndex > 0) {
-        // Swiped right -> Previous tab
-        setActiveSection(sections[currentIndex - 1].id);
-      }
-    }
-    touchStartXRef.current = null;
-    touchStartYRef.current = null;
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-      {/* Background Layer with Dark Wash & Chromatic Refraction Fields */}
-      <ImageBackground
-        source={require('../../assets/lpu-events-campus-glass-background.webp')}
-        resizeMode="cover"
-        style={StyleSheet.absoluteFill}
-        imageStyle={styles.backgroundImage}
-      >
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: dark ? 'rgba(14,14,18,.65)' : 'rgba(244,247,251,.04)' },
-          ]}
-        />
-      </ImageBackground>
+      <CampusBackground dark={dark} blurred />
 
       {/* Main Content Area */}
       <ScrollView
-        contentContainerStyle={[styles.content, externalUrl ? styles.contentWithStickyDock : null]}
+        contentContainerStyle={[
+          styles.content,
+          externalUrl ? { paddingBottom: 100 + bottomInset } : { paddingBottom: 36 + bottomInset },
+        ]}
         showsVerticalScrollIndicator={false}
         bounces={true}
         alwaysBounceVertical={true}
@@ -295,65 +329,40 @@ export default function EventDetailsScreen() {
             onPress={goBack}
             accessibilityRole="button"
             accessibilityLabel="Back to events"
-            style={[
-              styles.back,
-              {
-                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
-                backgroundColor: 'transparent',
-                borderWidth: 1.5,
-                overflow: 'hidden',
-              },
-            ]}
+            style={({ pressed }) => [pressed && styles.buttonPressed]}
           >
-            <BlurView
-              pointerEvents="none"
-              intensity={dark ? 65 : 85}
-              tint={dark ? 'dark' : 'light'}
-              blurMethod="none"
-              style={StyleSheet.absoluteFill}
-            />
-            <View
-              pointerEvents="none"
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg },
-              ]}
-            />
-            <SpecularTopRim dark={dark} height={1} />
-            <NativeIcon name="arrow-left" size={17} color={palette.text} strokeWidth={2.4} />
-            <Text style={[styles.backText, { color: palette.text }]}>Back to events</Text>
+            <LiquidGlassCard
+              dark={dark}
+              borderRadius={radii.pill}
+              tintColor={dark ? glass.dark.pillBg : glass.light.pillBg}
+              borderColor={dark ? glass.dark.pillBorder : glass.light.pillBorder}
+              style={styles.backPill}
+              contentStyle={styles.backPillContent}
+              shadow={false}
+            >
+              <NativeIcon name="arrow-left" size={17} color={palette.text} strokeWidth={2.4} />
+              <Text style={[styles.backText, { color: palette.text }]}>Back to events</Text>
+            </LiquidGlassCard>
           </Pressable>
 
           <Pressable
             onPress={() => setShareModalVisible(true)}
+            accessibilityRole="button"
             accessibilityLabel="Share event"
-            style={[
-              styles.share,
-              {
-                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
-                backgroundColor: 'transparent',
-                borderWidth: 1.5,
-                overflow: 'hidden',
-              },
-            ]}
+            style={({ pressed }) => [pressed && styles.buttonPressed]}
           >
-            <BlurView
-              pointerEvents="none"
-              intensity={dark ? 65 : 85}
-              tint={dark ? 'dark' : 'light'}
-              blurMethod="none"
-              style={StyleSheet.absoluteFill}
-            />
-            <View
-              pointerEvents="none"
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg },
-              ]}
-            />
-            <SpecularTopRim dark={dark} height={1} />
-            <NativeIcon name="share" size={16} color="#ea580c" strokeWidth={2.2} />
-            <Text style={[styles.backText, { color: palette.text }]}>Share</Text>
+            <LiquidGlassCard
+              dark={dark}
+              borderRadius={radii.pill}
+              tintColor={dark ? glass.dark.pillBg : glass.light.pillBg}
+              borderColor={dark ? glass.dark.pillBorder : glass.light.pillBorder}
+              style={styles.sharePill}
+              contentStyle={styles.sharePillContent}
+              shadow={false}
+            >
+              <NativeIcon name="share" size={16} color="#ea580c" strokeWidth={2.2} />
+              <Text style={[styles.backText, { color: palette.text }]}>Share</Text>
+            </LiquidGlassCard>
           </Pressable>
         </View>
 
@@ -362,7 +371,7 @@ export default function EventDetailsScreen() {
         {!loading && !event ? (
           <View style={styles.center}>
             <Text style={[styles.errorTitle, { color: palette.text }]}>Event Not Found</Text>
-            <Text style={[styles.description, { color: palette.mutedText }]}>
+            <Text style={[styles.errorDescription, { color: palette.mutedText }]}>
               {errorMessage ?? 'This event could not be found.'}
             </Text>
             <Pressable onPress={() => void load(true)} style={styles.retry}>
@@ -373,60 +382,81 @@ export default function EventDetailsScreen() {
 
         {event ? (
           <>
-            {/* 16:9 Banner Stage with Ambient Blur Backdrop (Matching Website) */}
-            <View
-              style={[
-                styles.posterFrame,
-                {
-                  backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
-                  borderColor: dark ? glass.dark.border : glass.light.border,
-                  borderWidth: 1.5,
-                },
-              ]}
+            {/* 16:9 Banner Stage with Ambient Blur Backdrop (Clickable to enlarge in center) */}
+            <Pressable
+              onPress={() => {
+                if (image) setImageModalVisible(true);
+              }}
+              disabled={!image}
+              accessibilityRole="button"
+              accessibilityLabel="View full size event image"
+              style={({ pressed }) => [pressed && Boolean(image) && styles.posterPressed]}
             >
-              <SpecularTopRim dark={dark} height={1.5} />
-              {image ? (
-                <>
-                  <Image source={image} style={StyleSheet.absoluteFill} resizeMode="cover" blurRadius={24} />
-                  <View
-                    style={[
-                      StyleSheet.absoluteFill,
-                      { backgroundColor: dark ? 'rgba(0,0,0,0.50)' : 'rgba(15,23,42,0.30)' },
-                    ]}
-                  />
-                  <Image
-                    source={image}
-                    resizeMode="contain"
-                    style={styles.poster}
-                    onError={() => setImageFailed(true)}
-                  />
-                </>
-              ) : (
-                <View style={[styles.posterFallback, { backgroundColor: dark ? '#222228' : '#e2e8f0' }]} />
-              )}
+              <LiquidGlassCard
+                dark={dark}
+                borderRadius={radii.lg}
+                tintColor={dark ? glass.dark.cardBg : glass.light.cardBg}
+                borderColor={dark ? glass.dark.border : glass.light.border}
+                style={styles.posterCardWrapper}
+                contentStyle={styles.posterCardContent}
+              >
+                {image ? (
+                  <>
+                    <Image source={image} style={StyleSheet.absoluteFill} resizeMode="cover" blurRadius={24} />
+                    <View
+                      style={[
+                        StyleSheet.absoluteFill,
+                        { backgroundColor: dark ? 'rgba(0,0,0,0.50)' : 'rgba(15,23,42,0.30)' },
+                      ]}
+                    />
+                    <Image
+                      source={image}
+                      resizeMode="contain"
+                      style={styles.poster}
+                      onError={() => setImageFailed(true)}
+                    />
 
-              {/* Category Jewel Badge */}
-              <View style={styles.categoryJewel}>
-                <View style={styles.jewelDot} />
-                <Text numberOfLines={1} style={styles.categoryJewelText}>
-                  {categoryName}
-                </Text>
-              </View>
+                    {/* Subtle Enlarge Hint Badge */}
+                    <View style={styles.enlargeBadge}>
+                      <NativeIcon name="arrow-up-right" size={11} color="#ffffff" strokeWidth={2.4} />
+                      <Text style={styles.enlargeBadgeText}>View</Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={[styles.posterFallback, { backgroundColor: dark ? '#222228' : '#e2e8f0' }]} />
+                )}
 
-              {/* Pricing Pill Badge */}
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {event.pricing_type === 'PAID' ? 'PAID EVENT' : 'FREE EVENT'}
-                </Text>
-              </View>
-            </View>
+                {/* Category Jewel Badge */}
+                <View style={styles.categoryJewel}>
+                  <View style={styles.jewelDot} />
+                  <Text numberOfLines={1} style={styles.categoryJewelText}>
+                    {categoryName}
+                  </Text>
+                </View>
 
-            {/* Event Title with Dynamic Auto-Fit System */}
+                {/* Paid Event Badge (Only shown if isPaid, matching student website) */}
+                {isPaid ? (
+                  <View style={styles.paidBadge}>
+                    <Text style={styles.paidBadgeText}>PAID EVENT</Text>
+                  </View>
+                ) : null}
+              </LiquidGlassCard>
+            </Pressable>
+
+            {/* Event Title with Dynamic Typography System */}
             <Text
               numberOfLines={3}
               adjustsFontSizeToFit
               minimumFontScale={0.72}
-              style={[styles.title, { color: palette.text }]}
+              style={[
+                styles.title,
+                {
+                  color: palette.text,
+                  textShadowColor: dark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.85)',
+                  textShadowOffset: { width: 0, height: dark ? 3 : 1 },
+                  textShadowRadius: dark ? 12 : 2,
+                },
+              ]}
             >
               {event.name}
             </Text>
@@ -439,86 +469,97 @@ export default function EventDetailsScreen() {
               </View>
             ) : null}
 
-            {/* Dedicated Verified Organizer Card (Matching Web Standalone Glass Box) */}
-            <View
-              style={[
-                styles.organizerCard,
-                {
-                  backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
-                  borderColor: dark ? glass.dark.border : glass.light.border,
-                  borderWidth: 1.5,
-                },
-              ]}
+            {/* Unified Schedule & Venue Glass Panel */}
+            <LiquidGlassCard
+              dark={dark}
+              borderRadius={radii.xl}
+              tintColor={dark ? glass.dark.panelBg : glass.light.panelBg}
+              borderColor={dark ? glass.dark.border : glass.light.border}
+              style={styles.infoPanelWrapper}
+              contentStyle={styles.infoPanelContent}
             >
-              <SpecularTopRim dark={dark} height={1.5} />
-              <GlassSheen dark={dark} />
-              <View style={styles.organizerIconBox}>
-                <NativeIcon name="users" size={19} color="#ea580c" strokeWidth={2.4} />
-              </View>
-              <View style={styles.organizerInfo}>
-                <Text style={styles.organizerEyebrow}>ORGANIZED BY</Text>
-                <View style={styles.organizerNameRow}>
-                  <Text numberOfLines={1} style={[styles.organizerName, { color: palette.text }]}>
-                    {event.organizations?.name || 'LPU Organization'}
-                  </Text>
-                  <View style={styles.verifiedBadge}>
-                    <NativeIcon name="check" size={11} color="#ffffff" strokeWidth={3} />
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Schedule & Logistics Info Panel */}
-            <View
-              style={[
-                styles.infoPanel,
-                {
-                  backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
-                  borderColor: dark ? glass.dark.border : glass.light.border,
-                  borderWidth: 1.5,
-                },
-              ]}
-            >
-              <SpecularTopRim dark={dark} height={1.5} />
-              <GlassSheen dark={dark} />
               <InfoRow icon="calendar" label="DATE" value={dateText(event)} dark={dark} tone="orange" />
               <InfoRow icon="clock" label="TIME" value={timeText(event)} dark={dark} tone="yellow" />
               <InfoRow icon="map-pin" label="VENUE" value={event.venue_name || 'LPU Campus'} dark={dark} tone="pink" last />
-            </View>
+            </LiquidGlassCard>
 
-            {/* Horizontal Scrollable Section Tabs (Matching Web Carousel) */}
-            <View style={styles.tabsWrapper}>
+            {/* Separate Verified Organizer Glass Panel (Placed below venue & date with a subtle gap) */}
+            <LiquidGlassCard
+              dark={dark}
+              borderRadius={radii.xl}
+              tintColor={dark ? glass.dark.panelBg : glass.light.panelBg}
+              borderColor={dark ? glass.dark.border : glass.light.border}
+              style={styles.organizerPanelWrapper}
+              contentStyle={styles.organizerPanelContent}
+            >
+              <View style={styles.organizerRow}>
+                <View style={styles.organizerIconBox}>
+                  <NativeIcon name="users" size={19} color="#ea580c" strokeWidth={2.4} />
+                </View>
+                <View style={styles.organizerInfo}>
+                  <View style={styles.organizerEyebrowRow}>
+                    <Text style={styles.organizerEyebrow}>ORGANIZED BY</Text>
+                    <NativeIcon name="check-circle" size={13} color="#10b981" strokeWidth={2.6} />
+                  </View>
+                  <Text numberOfLines={1} style={[styles.organizerName, { color: palette.text }]}>
+                    {event.organizations?.name || 'Lovely Professional University'}
+                  </Text>
+                </View>
+              </View>
+            </LiquidGlassCard>
+
+            {/* Horizontal Scrollable Section Tabs Track (Frosted Glass Dock Capsule) */}
+            <LiquidGlassCard
+              dark={dark}
+              borderRadius={radii.pill}
+              tintColor={dark ? 'rgba(34, 34, 38, 0.92)' : 'rgba(255, 255, 255, 0.92)'}
+              borderColor={dark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.92)'}
+              style={styles.tabsDockWrapper}
+              contentStyle={styles.tabsDockContent}
+              shadow={false}
+            >
               <ScrollView
+                ref={tabsScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tabsContainer}
+                nestedScrollEnabled={true}
+                contentContainerStyle={styles.tabsScrollContent}
+                onLayout={(e) => {
+                  tabsScrollWidthRef.current = e.nativeEvent.layout.width;
+                }}
               >
-                {sections.map((section) => {
-                  const isActive = activeSection === section.id;
+                {sections.map((section, idx) => {
+                  const isActive = activeIndex === idx;
                   return (
                     <Pressable
                       key={section.id}
-                      onPress={() => setActiveSection(section.id)}
-                      style={[
+                      onPress={() => handleTabPress(idx)}
+                      onLayout={(e) => {
+                        const { x, width } = e.nativeEvent.layout;
+                        handleTabLayout(idx, { x, width });
+                      }}
+                      style={({ pressed }) => [
                         styles.tab,
                         isActive
                           ? styles.activeTab
                           : [
                               styles.inactiveTab,
                               {
-                                backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
-                                borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
-                                borderWidth: 1.5,
+                                backgroundColor: dark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)',
+                                borderColor: dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
                               },
                             ],
+                        pressed && styles.tabPressed,
                       ]}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: isActive }}
                     >
-                      {isActive && <SpecularTopRim dark={dark} height={1} />}
+                      {isActive && <SpecularTopRim dark={dark} height={1} intensity={0.9} />}
                       <Text
                         style={[
                           styles.tabText,
                           {
-                            color: isActive ? '#ffffff' : palette.text,
+                            color: isActive ? '#ffffff' : (dark ? '#cbd5e1' : '#475569'),
                             fontWeight: isActive ? '900' : '700',
                           },
                         ]}
@@ -529,81 +570,217 @@ export default function EventDetailsScreen() {
                   );
                 })}
               </ScrollView>
+            </LiquidGlassCard>
+
+            {/* Slidable Animated Content Carousel Pager (Hardware accelerated 120Hz native paging) */}
+            <View
+              style={styles.pagerWrapper}
+              onLayout={(e) => {
+                const w = e.nativeEvent.layout.width;
+                if (w > 0 && Math.abs(w - panelWidth) > 1) {
+                  setPanelWidth(w);
+                }
+              }}
+            >
+              <ScrollView
+                ref={contentPagerRef}
+                horizontal
+                pagingEnabled={true}
+                showsHorizontalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                directionalLockEnabled={true}
+                decelerationRate="fast"
+                bounces={true}
+                overScrollMode="never"
+                onScroll={handleScroll}
+                onMomentumScrollEnd={handleMomentumScrollEnd}
+                scrollEventThrottle={16}
+                style={[styles.pagerScrollView, { width: panelWidth }]}
+                contentContainerStyle={styles.pagerContentContainer}
+              >
+                {sections.map((section, idx) => (
+                  <View key={section.id} style={{ width: panelWidth, paddingHorizontal: 2 }}>
+                    <LiquidGlassCard
+                      dark={dark}
+                      borderRadius={radii.xl}
+                      tintColor={dark ? 'rgba(30, 30, 34, 0.96)' : 'rgba(255, 255, 255, 0.94)'}
+                      borderColor={dark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.95)'}
+                      style={styles.contentCardWrapper}
+                      contentStyle={styles.contentCardContent}
+                    >
+                      {/* Section Card Header Badge & Swipe Hint */}
+                      <View style={styles.sectionHeaderRow}>
+                        <View style={styles.sectionHeaderBadge}>
+                          <Text style={styles.sectionHeaderBadgeText}>
+                            {`SECTION ${String(idx + 1).padStart(2, '0')} / ${String(sections.length).padStart(2, '0')}`}
+                          </Text>
+                        </View>
+                        <View style={styles.sectionSwipeCue}>
+                          <Text style={[styles.sectionSwipeCueText, { color: dark ? '#a1a1aa' : '#64748b' }]}>
+                            {idx < sections.length - 1 ? 'Swipe for more' : 'Final section'}
+                          </Text>
+                          <NativeIcon
+                            name={idx < sections.length - 1 ? 'arrow-right' : 'check'}
+                            size={12}
+                            color={dark ? '#f97316' : '#ea580c'}
+                            strokeWidth={2.4}
+                          />
+                        </View>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.sectionDivider,
+                          { backgroundColor: dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
+                        ]}
+                      />
+
+                      {/* Main Section Content */}
+                      <EventSectionRenderer content={section.content} dark={dark} loading={detailsLoading} />
+
+                      {/* Next Section Action Pill or Completion Hint */}
+                      {idx < sections.length - 1 ? (
+                        <Pressable
+                          onPress={() => handleTabPress(idx + 1)}
+                          style={({ pressed }) => [
+                            styles.nextSectionButton,
+                            {
+                              backgroundColor: dark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(234, 88, 12, 0.08)',
+                              borderColor: dark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(234, 88, 12, 0.20)',
+                            },
+                            pressed && styles.buttonPressed,
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Next section: ${sections[idx + 1].title}`}
+                        >
+                          <View style={styles.nextSectionCopy}>
+                            <Text style={[styles.nextSectionEyebrow, { color: dark ? '#a1a1aa' : '#64748b' }]}>
+                              NEXT SECTION
+                            </Text>
+                            <Text numberOfLines={1} style={[styles.nextSectionTitle, { color: palette.text }]}>
+                              {sections[idx + 1].title}
+                            </Text>
+                          </View>
+                          <View style={styles.nextSectionArrowBox}>
+                            <NativeIcon name="arrow-right" size={15} color="#ffffff" strokeWidth={2.6} />
+                          </View>
+                        </Pressable>
+                      ) : (
+                        <View style={styles.sectionEndNotice}>
+                          <NativeIcon name="check-circle" size={14} color="#10b981" strokeWidth={2.4} />
+                          <Text style={[styles.sectionEndNoticeText, { color: dark ? '#a1a1aa' : '#64748b' }]}>
+                            End of event details
+                          </Text>
+                        </View>
+                      )}
+                    </LiquidGlassCard>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
 
-            {/* Content Panel with Horizontal Swipe Navigation */}
-            <View
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              style={[
-                styles.contentPanel,
-                {
-                  backgroundColor: dark ? glass.dark.panelBg : glass.light.panelBg,
-                  borderColor: dark ? glass.dark.border : glass.light.border,
-                  borderWidth: 1.5,
-                },
-              ]}
-            >
-              <SpecularTopRim dark={dark} height={1.5} />
-              <GlassSheen dark={dark} />
-              <SectionContent content={currentSection?.content} dark={dark} />
-            </View>
+            {/* Pagination Dots Indicator Bar */}
+            {sections.length > 1 && (
+              <View style={styles.dotsDock}>
+                {sections.map((_, i) => {
+                  const isDotActive = activeIndex === i;
+                  return (
+                    <Pressable
+                      key={i}
+                      onPress={() => handleTabPress(i)}
+                      hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                      style={({ pressed }) => [
+                        styles.dotTouchTarget,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Go to section ${i + 1}`}
+                    >
+                      <View
+                        style={[
+                          styles.dot,
+                          isDotActive
+                            ? styles.activeDot
+                            : [
+                                styles.inactiveDot,
+                                {
+                                  backgroundColor: dark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.18)',
+                                },
+                              ],
+                        ]}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
           </>
         ) : null}
       </ScrollView>
 
-      {/* Floating Sticky Bottom CTA Dock with Hardware Blur */}
+      {/* Floating Sticky Bottom Action Dock with Hardware Blur & Admission Status */}
       {externalUrl && event ? (
         <View
           style={[
             styles.stickyBottomBar,
             {
-              backgroundColor: 'transparent',
-              borderTopColor: dark ? glass.dark.border : glass.light.border,
-              borderTopWidth: 1.5,
-              overflow: 'hidden',
+              paddingBottom: bottomInset + 6,
+              borderTopColor: dark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.95)',
             },
           ]}
         >
           <BlurView
             pointerEvents="none"
-            intensity={dark ? 75 : 90}
+            intensity={Platform.OS === 'android' ? 70 : 90}
             tint={dark ? 'dark' : 'light'}
-            blurMethod="none"
             style={StyleSheet.absoluteFill}
           />
           <View
             pointerEvents="none"
             style={[
               StyleSheet.absoluteFill,
-              { backgroundColor: dark ? glass.dark.headerBg : glass.light.headerBg },
+              { backgroundColor: dark ? 'rgba(22, 22, 26, 0.94)' : 'rgba(255, 255, 255, 0.94)' },
             ]}
           />
-          <SpecularTopRim dark={dark} height={1.5} />
-          <Pressable
-            onPress={handleBookPress}
-            style={styles.stickyBookingButton}
-            accessibilityRole="button"
-            accessibilityLabel="Book Ticket"
-          >
-            <Text style={styles.stickyBookingText}>Book Ticket</Text>
-            <NativeIcon name="arrow-up-right" size={17} color="#ffffff" strokeWidth={2.5} />
-          </Pressable>
+          <SpecularTopRim dark={dark} height={1.2} intensity={0.9} />
 
-          <Pressable
-            onPress={() => setShareModalVisible(true)}
-            style={[
-              styles.stickyShareButton,
-              {
-                backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
-                borderColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Share Event"
-          >
-            <NativeIcon name="share" size={18} color="#ea580c" strokeWidth={2.4} />
-          </Pressable>
+          {/* Left Side: Ticket Price & Admission Status (Matching Website) */}
+          <View style={styles.dockPriceRow}>
+            <View style={styles.dockPriceIcon}>
+              <NativeIcon name="ticket" size={19} color="#ea580c" strokeWidth={2.4} />
+            </View>
+            <View style={styles.dockPriceInfo}>
+              <Text style={[styles.dockPriceEyebrow, { color: dark ? '#a1a1aa' : '#64748b' }]}>
+                {isPaid ? 'TICKET PRICE' : 'ADMISSION'}
+              </Text>
+              <Text numberOfLines={1} style={[styles.dockPriceValue, { color: palette.text }]}>
+                {priceDisplay}
+              </Text>
+            </View>
+          </View>
+
+          {/* Right Side: CTA Button or Cancelled Status */}
+          <View style={styles.dockActionRow}>
+            {event.status === 'CANCELLED' ? (
+              <View style={styles.dockCancelledBadge}>
+                <Text style={styles.dockCancelledText}>Event Cancelled</Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={handleBookPress}
+                style={({ pressed }) => [
+                  styles.stickyBookingButton,
+                  pressed && styles.buttonPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Book Ticket"
+              >
+                <NativeIcon name="ticket" size={16} color="#ffffff" strokeWidth={2.4} />
+                <Text style={styles.stickyBookingText}>Book Ticket</Text>
+                <NativeIcon name="external-link" size={13} color="#ffffff" strokeWidth={2.6} />
+              </Pressable>
+            )}
+          </View>
         </View>
       ) : null}
 
@@ -623,6 +800,15 @@ export default function EventDetailsScreen() {
         event={event}
         dark={dark}
       />
+
+      {/* Centered Zoomable Event Image Lightbox Modal */}
+      <ZoomableImageViewer
+        visible={imageModalVisible}
+        onClose={() => setImageModalVisible(false)}
+        image={image}
+        title={event?.name || 'Event Image'}
+        dark={dark}
+      />
     </SafeAreaView>
   );
 }
@@ -630,9 +816,6 @@ export default function EventDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  backgroundImage: {
-    opacity: 0.92,
   },
   content: {
     padding: spacing.gutter,
@@ -647,42 +830,72 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  back: {
+  buttonPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.97 }],
+  },
+  backPill: {
+    borderRadius: radii.pill,
+  },
+  backPillContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    ...shadows.glass,
+    paddingVertical: 8,
   },
-  share: {
+  sharePill: {
+    borderRadius: radii.pill,
+  },
+  sharePillContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    ...shadows.glass,
+    paddingVertical: 8,
   },
   backText: {
     fontSize: 12.5,
     fontWeight: '800',
     fontFamily: typography.headingFamily,
   },
-  posterFrame: {
+  posterCardWrapper: {
+    width: '100%',
+    marginBottom: spacing.lg,
+  },
+  posterPressed: {
+    transform: [{ scale: 0.985 }],
+    opacity: 0.94,
+  },
+  enlargeBadge: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.70)',
+    borderRadius: radii.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    zIndex: 10,
+  },
+  enlargeBadgeText: {
+    color: '#ffffff',
+    fontSize: 10.5,
+    fontWeight: '800',
+    fontFamily: typography.headingFamily,
+    letterSpacing: 0.4,
+  },
+  posterCardContent: {
     width: '100%',
     aspectRatio: 16 / 9,
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
     position: 'relative',
-    ...shadows.glass,
+    overflow: 'hidden',
   },
   poster: {
     width: '100%',
@@ -718,24 +931,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.6,
+    fontFamily: typography.headingFamily,
   },
-  badge: {
+  paidBadge: {
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: 'rgba(0,0,0,.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     borderRadius: radii.pill,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.20)',
+    borderColor: 'rgba(251, 191, 36, 0.35)',
     zIndex: 10,
   },
-  badgeText: {
+  paidBadgeText: {
     color: '#fcd34d',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
+    fontFamily: typography.headingFamily,
   },
   title: {
     fontSize: 27,
@@ -757,29 +972,38 @@ const styles = StyleSheet.create({
     color: '#e11d48',
     fontWeight: '900',
     marginBottom: 4,
+    fontFamily: typography.headingFamily,
   },
   cancelledText: {
     color: '#9f1239',
     fontSize: 13,
+    fontFamily: typography.headingFamily,
   },
-  organizerCard: {
+  infoPanelWrapper: {
+    marginBottom: 10,
+  },
+  infoPanelContent: {
+    paddingHorizontal: spacing.md,
+  },
+  organizerPanelWrapper: {
+    marginBottom: spacing.lg,
+  },
+  organizerPanelContent: {
+    paddingHorizontal: spacing.md,
+  },
+  organizerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    ...shadows.glass,
+    paddingVertical: spacing.md,
   },
   organizerIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
+    width: 42,
+    height: 42,
+    borderRadius: radii.md,
     backgroundColor: 'rgba(234,88,12,0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(234,88,12,0.25)',
+    borderColor: 'rgba(234,88,12,0.30)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -787,40 +1011,47 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  organizerEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 2,
+  },
   organizerEyebrow: {
     fontSize: 9.5,
     fontWeight: '900',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: '#ea580c',
-    marginBottom: 2,
     fontFamily: typography.headingFamily,
   },
-  organizerNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   organizerName: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '800',
     fontFamily: typography.headingFamily,
     flexShrink: 1,
   },
-  verifiedBadge: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#16a34a',
+  organizerStatusRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
+    marginTop: 2,
   },
-  infoPanel: {
-    borderRadius: radii.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.lg,
-    ...shadows.glass,
+  organizerStatusMuted: {
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: typography.headingFamily,
+  },
+  organizerStatusDot: {
+    fontSize: 11,
+    fontWeight: '900',
+    fontFamily: typography.headingFamily,
+  },
+  organizerStatusGreen: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#10b981',
+    fontFamily: typography.headingFamily,
   },
   infoRow: {
     flexDirection: 'row',
@@ -856,62 +1087,171 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: typography.headingFamily,
   },
-  tabsWrapper: {
-    marginBottom: spacing.sm,
+  tabsDockWrapper: {
+    marginBottom: spacing.md,
   },
-  tabsContainer: {
+  tabsDockContent: {
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+  },
+  tabsScrollContent: {
     gap: 8,
-    paddingVertical: 2,
+    alignItems: 'center',
+    paddingHorizontal: 2,
   },
   tab: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radii.sm,
-    minHeight: 38,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    minHeight: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  tabPressed: {
+    transform: [{ scale: 0.95 }],
+    opacity: 0.9,
+  },
   activeTab: {
     backgroundColor: '#ea580c',
-    ...shadows.orange,
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.38,
+    shadowRadius: 10,
+    elevation: 6,
   },
   inactiveTab: {
     borderWidth: 1,
   },
   tabText: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: typography.headingFamily,
   },
-  contentPanel: {
-    borderWidth: 1,
-    borderRadius: radii.md,
+  pagerWrapper: {
+    width: '100%',
+    marginBottom: spacing.sm,
+  },
+  pagerScrollView: {
+    overflow: 'visible',
+  },
+  pagerContentContainer: {
+    alignItems: 'stretch',
+  },
+  contentCardWrapper: {
+    minHeight: 180,
+  },
+  contentCardContent: {
     padding: spacing.lg,
-    marginBottom: spacing.lg,
-    ...shadows.glass,
   },
-  contentText: {
-    gap: 4,
-  },
-  description: {
-    fontSize: 14.5,
-    lineHeight: 24,
-    fontWeight: '500',
-  },
-  listRow: {
+  sectionHeaderRow: {
     flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
   },
-  bullet: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '900',
-  },
-  keyValue: {
-    padding: 12,
+  sectionHeaderBadge: {
+    backgroundColor: 'rgba(234, 88, 12, 0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderRadius: radii.sm,
-    marginBottom: 8,
+    borderColor: 'rgba(234, 88, 12, 0.28)',
+  },
+  sectionHeaderBadgeText: {
+    color: '#ea580c',
+    fontSize: 9.5,
+    fontWeight: '900',
+    fontFamily: typography.headingFamily,
+    letterSpacing: 0.8,
+  },
+  sectionSwipeCue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  sectionSwipeCueText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: typography.headingFamily,
+  },
+  sectionDivider: {
+    height: 1,
+    width: '100%',
+    marginVertical: spacing.md,
+  },
+  nextSectionButton: {
+    marginTop: spacing.xl,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  nextSectionCopy: {
+    flex: 1,
+    marginRight: 12,
+  },
+  nextSectionEyebrow: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    fontFamily: typography.headingFamily,
+    marginBottom: 2,
+  },
+  nextSectionTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    fontFamily: typography.headingFamily,
+  },
+  nextSectionArrowBox: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.pill,
+    backgroundColor: '#ea580c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.orange,
+  },
+  sectionEndNotice: {
+    marginTop: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  sectionEndNoticeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    fontFamily: typography.headingFamily,
+  },
+  dotsDock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: spacing.lg,
+    paddingVertical: 4,
+  },
+  dotTouchTarget: {
+    padding: 4,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  activeDot: {
+    width: 22,
+    backgroundColor: '#ea580c',
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  inactiveDot: {
+    width: 6,
   },
   stickyBottomBar: {
     position: 'absolute',
@@ -920,38 +1260,84 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.gutter,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingTop: 10,
     borderTopWidth: 1,
+    overflow: 'hidden',
     ...shadows.glass,
   },
+  dockPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  dockPriceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(234,88,12,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(234,88,12,0.30)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dockPriceInfo: {
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+  dockPriceEyebrow: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    fontFamily: typography.headingFamily,
+  },
+  dockPriceValue: {
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '900',
+    fontFamily: typography.headingFamily,
+    letterSpacing: -0.4,
+  },
+  dockActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  dockCancelledBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(244,63,94,.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(244,63,94,.3)',
+  },
+  dockCancelledText: {
+    color: '#e11d48',
+    fontSize: 12.5,
+    fontWeight: '900',
+    fontFamily: typography.headingFamily,
+  },
   stickyBookingButton: {
-    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
     backgroundColor: '#ea580c',
     borderRadius: radii.pill,
-    paddingVertical: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
     ...shadows.orange,
   },
   stickyBookingText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '900',
     fontFamily: typography.headingFamily,
     letterSpacing: 0.3,
-  },
-  stickyShareButton: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   center: {
     alignItems: 'center',
@@ -963,6 +1349,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
     fontFamily: typography.headingFamily,
+  },
+  errorDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+    textAlign: 'center',
+    maxWidth: 280,
   },
   retry: {
     backgroundColor: '#ea580c',
@@ -988,7 +1381,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   skeletonPanel: {
-    height: 190,
-    borderRadius: radii.md,
+    height: 180,
+    borderRadius: radii.xl,
+  },
+  skeletonOrganizer: {
+    height: 66,
+    borderRadius: radii.xl,
+    marginTop: -4,
   },
 });

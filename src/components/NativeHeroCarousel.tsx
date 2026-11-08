@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import Svg, { LinearGradient, Rect as SvgRect, Stop } from 'react-native-svg';
 import type { EventFeedItem, NativeCarouselItem } from '../api/types';
-import { radii, shadows, spacing, typography } from '../design/tokens';
+import { glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { eventImageSource, mediaUrl } from '../features/homepageModels';
 import { NativeIcon } from './NativeIcon';
 import { SpecularTopRim } from './ui/NativeGlass';
@@ -221,12 +221,12 @@ function NativeHeroCarouselComponent({
                 {
                   width: cardWidth,
                   height: cardHeight,
-                  backgroundColor: dark ? 'rgba(34,35,40,0.65)' : 'rgba(255,255,255,0.48)',
-                  borderColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.82)',
+                  backgroundColor: dark ? glass.dark.cardBg : glass.light.cardBg,
+                  borderColor: dark ? glass.dark.border : glass.light.border,
                 },
               ]}
             >
-              <SpecularTopRim dark={dark} height={1.5} />
+              <SpecularTopRim dark={dark} height={1} />
               {item.image ? (
                 <>
                   {/* Ambient Refractive Blurred Backdrop */}
@@ -288,8 +288,8 @@ function NativeHeroCarouselComponent({
                 styles.sideArrowButton,
                 styles.leftArrowButton,
                 {
-                  backgroundColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.78)',
-                  borderColor: dark ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.85)',
+                  backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.65)',
+                  borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.45)',
                 },
               ]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -310,8 +310,8 @@ function NativeHeroCarouselComponent({
                 styles.sideArrowButton,
                 styles.rightArrowButton,
                 {
-                  backgroundColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.78)',
-                  borderColor: dark ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.85)',
+                  backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.65)',
+                  borderColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.45)',
                 },
               ]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -327,18 +327,10 @@ function NativeHeroCarouselComponent({
         )}
       </View>
 
-      {/* Progress Dots — Centered Below the Card in Frosted Glass Capsule */}
+      {/* Progress Dots — Borderless Floating Dots */}
       {slides.length > 1 && (
         <View style={styles.dotsWrapper}>
-          <View
-            style={[
-              styles.dotsCapsule,
-              {
-                backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.65)',
-                borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.85)',
-              },
-            ]}
-          >
+          <View style={styles.dotsRow}>
             {slides.map((_, dotIdx) => {
               const isActive = dotIdx === index;
               return (
@@ -353,7 +345,7 @@ function NativeHeroCarouselComponent({
                       ? styles.capsuleDotActive
                       : [
                           styles.capsuleDotInactive,
-                          { backgroundColor: dark ? 'rgba(255,255,255,0.25)' : '#cbd5e1' },
+                          { backgroundColor: dark ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.18)' },
                         ],
                   ]}
                 >
@@ -395,7 +387,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 24,
-    borderWidth: 1.5,
+    borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
     justifyContent: 'center',
@@ -445,11 +437,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 1,
   },
   leftArrowButton: {
     left: -8,
@@ -460,17 +452,14 @@ const styles = StyleSheet.create({
   dotsWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 0,
   },
-  dotsCapsule: {
+  dotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    borderWidth: 1,
+    paddingVertical: 4,
   },
   capsuleDotBase: {
     height: 8,
