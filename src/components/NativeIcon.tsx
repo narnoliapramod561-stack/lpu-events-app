@@ -31,7 +31,7 @@ export function NativeIcon({ name, size = 16, color = '#0f172a', strokeWidth = 2
       case 'share': return <><Circle {...common} cx="18" cy="5" r="2.5" /><Circle {...common} cx="6" cy="12" r="2.5" /><Circle {...common} cx="18" cy="19" r="2.5" /><Line {...common} x1="8.3" y1="10.8" x2="15.7" y2="6.2" /><Line {...common} x1="8.3" y1="13.2" x2="15.7" y2="17.8" /></>;
       case 'search': return <><Circle {...common} cx="11" cy="11" r="7" /><Line {...common} x1="20" y1="20" x2="16" y2="16" /></>;
       case 'sun': return <><Circle {...common} cx="12" cy="12" r="4" /><Path {...common} d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></>;
-      case 'moon': return <Path {...common} d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" />;
+      case 'moon': return <Path {...common} d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />;
       case 'menu': return <><Line {...common} x1="4" y1="6" x2="20" y2="6" /><Line {...common} x1="4" y1="12" x2="20" y2="12" /><Line {...common} x1="4" y1="18" x2="20" y2="18" /></>;
       case 'home': return <><Path {...common} d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><Polyline {...common} points="9 22 9 12 15 12 15 22" /></>;
       case 'users': return <><Path {...common} d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><Circle {...common} cx="9" cy="7" r="4" /><Path {...common} d="M22 21v-2a4 4 0 0 0-3-3.87" /><Path {...common} d="M16 3.13a4 4 0 0 1 0 7.75" /></>;

@@ -3,6 +3,16 @@ import type { CategoryFeedItem, EventFeedItem } from '../api/types';
 export type TimelineFilter = 'all' | 'today' | 'tomorrow' | 'this_week' | 'upcoming' | 'date';
 export type PricingFilter = 'ALL' | 'FREE' | 'PAID';
 
+export const isPaidEvent = (
+  e: { pricing_type?: string | null; price_amount?: number | string | null } | null | undefined,
+): boolean => {
+  if (!e) return false;
+  const numPrice = typeof e.price_amount === 'number' ? e.price_amount : Number(e.price_amount);
+  if (!Number.isNaN(numPrice) && numPrice > 0) return true;
+  if (typeof e.pricing_type === 'string' && e.pricing_type.toUpperCase() === 'PAID') return true;
+  return false;
+};
+
 export const localDate = (input?: string | Date | number | null): string => {
   if (!input) return '';
   const date = typeof input === 'string' || typeof input === 'number' ? new Date(input) : input;

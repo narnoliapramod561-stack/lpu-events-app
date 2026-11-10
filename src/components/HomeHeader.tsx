@@ -1,5 +1,6 @@
 import React, { memo, useId, useMemo, useRef, useState } from 'react';
 import {
+  Dimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -7,11 +8,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from 'react-native';
 import { router } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, {
   Defs,
   LinearGradient as SvgLinearGradient,
@@ -22,6 +25,7 @@ import { LpuEventsLogo } from './LpuEventsLogo';
 import { NativeIcon } from './NativeIcon';
 import { radii, typography } from '../design/tokens';
 import { SpecularTopRim } from './ui/NativeGlass';
+import { CampusBackground } from './CampusBackground';
 import type { EventFeedItem } from '../api/types';
 
 export interface HomeHeaderProps {
@@ -37,40 +41,9 @@ export interface HomeHeaderProps {
   onRefresh?: () => void;
   isTrendingActive?: boolean;
   isCategoriesActive?: boolean;
+  hideBrandLogo?: boolean;
 }
 
-/**
- * Specular Real Glass Linear Gradient Overlay for Header
- * Matches .glass-nav in student website:
- * Light: linear-gradient(180deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.20) 70%, rgba(255,255,255,0.12) 100%)
- * Dark:  linear-gradient(180deg, rgba(24,24,28,0.65) 0%, rgba(18,18,22,0.50) 100%)
- */
-function HeaderGlassBackground({ dark }: { dark: boolean }) {
-  const rawId = useId();
-  const gradId = `hdr-grad-${dark ? 'dark' : 'light'}-${rawId.replace(/:/g, '')}`;
-
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
-        <Defs>
-          <SvgLinearGradient id={gradId} x1="0%" y1="0%" x2="0%" y2="100%">
-            {dark
-              ? [
-                  <Stop key="d0" offset="0%" stopColor="#18181c" stopOpacity={0.65} />,
-                  <Stop key="d1" offset="100%" stopColor="#121216" stopOpacity={0.50} />,
-                ]
-              : [
-                  <Stop key="l0" offset="0%" stopColor="#ffffff" stopOpacity={0.40} />,
-                  <Stop key="l1" offset="70%" stopColor="#ffffff" stopOpacity={0.20} />,
-                  <Stop key="l2" offset="100%" stopColor="#ffffff" stopOpacity={0.12} />,
-                ]}
-          </SvgLinearGradient>
-        </Defs>
-        <SvgRect width="100%" height="100%" fill={`url(#${gradId})`} />
-      </Svg>
-    </View>
-  );
-}
 
 /**
  * Translucent Glass Gradient for Top Half-Screen Mobile Drawer
@@ -118,10 +91,15 @@ function HomeHeaderComponent({
   onRefresh,
   isTrendingActive = false,
   isCategoriesActive = false,
+  hideBrandLogo = false,
 }: HomeHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const insets = useSafeAreaInsets();
+  const windowDims = useWindowDimensions();
+  const screenDims = Dimensions.get('screen');
+  const screenHeight = Math.max(windowDims.height, screenDims.height);
   const lastRefreshRef = useRef(0);
   const searchInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
@@ -175,24 +153,24 @@ function HomeHeaderComponent({
       style={[
         styles.shell,
         dark ? styles.shellDark : styles.shellLight,
+        { paddingTop: Math.max(insets.top - 4, 4) },
         style,
       ]}
     >
-      {/* Background Blur */}
-      <BlurView
-        pointerEvents="none"
-        intensity={dark ? 75 : 90}
-        tint={dark ? 'dark' : 'light'}
-        blurTarget={blurTarget}
-        blurMethod={blurTarget ? 'dimezisBlurViewSdk31Plus' : undefined}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* SVG Specular Linear Gradient Overlay */}
-      <HeaderGlassBackground dark={dark} />
-
-      {/* Specular Light Reflection Rim along top border */}
-      <SpecularTopRim dark={dark} height={1} />
+      {/* Root-aligned background image: ensures scrolled details slip under the topbar without showing through, while perfectly matching the screen background */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View
+          style={{
+            width: windowDims.width,
+            height: screenHeight,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
+        >
+          <CampusBackground dark={dark} />
+        </View>
+      </View>
 
       {/* Main Bar Content */}
       <View style={styles.barRow}>
@@ -200,7 +178,7 @@ function HomeHeaderComponent({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go to Student Dashboard"
-          style={styles.brand}
+          style={[styles.brand, hideBrandLogo ? { opacity: 0 } : null]}
           onPress={handleBrandClick}
         >
           <LpuEventsLogo size={42} />
@@ -435,6 +413,7 @@ function HomeHeaderComponent({
             style={[
               styles.menuSheet,
               {
+                paddingTop: insets.top + 16,
                 borderColor: dark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.75)',
               },
             ]}
@@ -743,30 +722,27 @@ export const HomeHeader = memo(HomeHeaderComponent);
 
 const styles = StyleSheet.create({
   shell: {
-    minHeight: 68,
+    minHeight: 44,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
+    paddingBottom: 6,
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
     position: 'relative',
   },
   shellLight: {
-    borderBottomColor: 'rgba(255, 255, 255, 0.45)',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 4,
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   shellDark: {
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.40,
-    shadowRadius: 18,
-    elevation: 6,
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   barRow: {
-    minHeight: 52,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

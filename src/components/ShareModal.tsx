@@ -125,14 +125,18 @@ export function ShareModal({ visible, onClose, event, dark }: ShareModalProps) {
             ]}
           >
             <View style={styles.snapshotRow}>
-              <NativeIcon name="calendar" size={14} color="#ea580c" />
-              <Text style={[styles.snapshotText, { color: dark ? '#f1f5f9' : '#1e293b' }]}>
+              <View style={styles.snapshotIconBox}>
+                <NativeIcon name="calendar" size={14} color="#ea580c" />
+              </View>
+              <Text numberOfLines={2} style={[styles.snapshotText, { color: dark ? '#f1f5f9' : '#1e293b' }]}>
                 {dateFormatted} • {timeFormatted}
               </Text>
             </View>
             <View style={styles.snapshotRow}>
-              <NativeIcon name="map-pin" size={14} color="#f43f5e" />
-              <Text style={[styles.snapshotText, { color: dark ? '#f1f5f9' : '#1e293b' }]}>
+              <View style={styles.snapshotIconBox}>
+                <NativeIcon name="map-pin" size={14} color="#f43f5e" />
+              </View>
+              <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.snapshotText, { color: dark ? '#f1f5f9' : '#1e293b' }]}>
                 {venueFormatted}
               </Text>
             </View>
@@ -258,12 +262,18 @@ const styles = StyleSheet.create({
   },
   snapshotRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
+  },
+  snapshotIconBox: {
+    marginTop: 1.5,
+    flexShrink: 0,
   },
   snapshotText: {
     fontSize: 12,
     fontWeight: '700',
+    flex: 1,
+    lineHeight: 17,
   },
   actions: {
     gap: 10,

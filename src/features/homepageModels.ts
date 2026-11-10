@@ -24,13 +24,21 @@ const event = (value: unknown): EventFeedItem | null => {
   if (
     typeof value.start_at !== 'string' ||
     typeof value.end_at !== 'string' ||
-    typeof value.venue_name !== 'string' ||
-    (value.registration_mode !== 'NONE' && value.registration_mode !== 'EXTERNAL') ||
-    (value.pricing_type !== 'FREE' && value.pricing_type !== 'PAID')
+    (value.registration_mode !== undefined && value.registration_mode !== 'NONE' && value.registration_mode !== 'EXTERNAL')
   ) {
     return null;
   }
-  return value as unknown as EventFeedItem;
+  const isPaidValue =
+    (typeof value.price_amount === 'number' && value.price_amount > 0) ||
+    (typeof value.price_amount === 'string' && Number(value.price_amount) > 0) ||
+    (typeof value.pricing_type === 'string' && value.pricing_type.toUpperCase() === 'PAID');
+
+  return {
+    ...value,
+    venue_name: typeof value.venue_name === 'string' ? value.venue_name : 'LPU Campus',
+    registration_mode: value.registration_mode === 'EXTERNAL' ? 'EXTERNAL' : 'NONE',
+    pricing_type: isPaidValue ? 'PAID' : 'FREE',
+  } as unknown as EventFeedItem;
 };
 
 export const normalizeCarouselItems = (value: unknown): NativeCarouselItem[] => {

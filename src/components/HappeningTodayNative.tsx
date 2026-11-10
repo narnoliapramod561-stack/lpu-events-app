@@ -1,7 +1,9 @@
-import React, { memo, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
+  LayoutAnimation,
+  LayoutChangeEvent,
   Modal,
   Platform,
   Pressable,
@@ -12,12 +14,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { useFonts } from 'expo-font';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect as SvgRect, Stop } from 'react-native-svg';
 import type { EventFeedItem } from '../api/types';
 import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { eventImageSource } from '../features/homepageModels';
-import { formatEventTime as formatTime } from '../features/eventHub';
+import { formatEventTime as formatTime, formatEventTimeRange } from '../features/eventHub';
 import { NativeIcon } from './NativeIcon';
 import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
 
@@ -31,6 +33,14 @@ interface HappeningTodayNativeProps {
 const formatEventTime = (dateStr?: string) => {
   if (!dateStr) return 'Time TBA';
   return formatTime(dateStr) || 'Time TBA';
+};
+
+const resolveEventSchedule = (startAt?: string, endAt?: string) => {
+  if (!startAt) return 'Today • Time TBA';
+  const range = formatEventTimeRange(startAt, endAt);
+  if (range) return `Today • ${range}`;
+  const single = formatTime(startAt);
+  return single ? `Today • ${single}` : 'Today • Time TBA';
 };
 
 const formatTodayDate = () => {
@@ -139,33 +149,16 @@ const EventCard = memo(function EventCard({
           {event.name}
         </Text>
 
-        {/* Badges Row (Time + Location) & View Action */}
+        {/* Tier 1: Time on Left, View Action on Right */}
         <View style={styles.deckMetaRow}>
-          <View style={styles.metaInlineGroup}>
-            <View style={styles.metaInlineItem}>
-              <NativeIcon name="clock" size={12} color={dark ? '#fb923c' : '#ea580c'} strokeWidth={2.4} />
-              <Text
-                numberOfLines={1}
-                style={[styles.metaInlineText, { color: dark ? '#cbd5e1' : '#475569' }]}
-              >
-                {time}
-              </Text>
-            </View>
-
-            {event.venue_name ? (
-              <>
-                <Text style={{ color: dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)', fontSize: 11 }}>•</Text>
-                <View style={styles.metaInlineItem}>
-                  <NativeIcon name="map-pin" size={12} color={dark ? '#f59e0b' : '#d97706'} strokeWidth={2.4} />
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.metaInlineText, { color: dark ? '#cbd5e1' : '#475569' }]}
-                  >
-                    {event.venue_name}
-                  </Text>
-                </View>
-              </>
-            ) : null}
+          <View style={styles.metaInlineItem}>
+            <NativeIcon name="clock" size={12} color={dark ? '#fb923c' : '#ea580c'} strokeWidth={2.4} />
+            <Text
+              numberOfLines={1}
+              style={[styles.metaInlineText, { color: dark ? '#cbd5e1' : '#475569' }]}
+            >
+              {time}
+            </Text>
           </View>
 
           {/* Minimal Tactile Action Indicator */}
@@ -174,6 +167,22 @@ const EventCard = memo(function EventCard({
             <NativeIcon name="arrow-right" size={12} color="#ea580c" strokeWidth={2.4} />
           </View>
         </View>
+
+        {/* Tier 2: Venue down below date/time, full text wraps naturally below venue only */}
+        {event.venue_name ? (
+          <View style={styles.deckVenueRow}>
+            <View style={styles.deckVenueIcon}>
+              <NativeIcon name="map-pin" size={12} color={dark ? '#f59e0b' : '#d97706'} strokeWidth={2.4} />
+            </View>
+            <Text
+              numberOfLines={2}
+              ellipsizeMode="tail"
+              style={[styles.deckVenueText, { color: dark ? '#cbd5e1' : '#475569' }]}
+            >
+              {event.venue_name}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -186,15 +195,60 @@ function HappeningTodayNativeComponent({
   onViewAll,
 }: HappeningTodayNativeProps) {
   const palette = dark ? colors.dark : colors.light;
-  const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const cardWidth = Math.min(380, Math.round(windowWidth * 0.85));
   const listRef = useRef<FlatList<EventFeedItem>>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useFonts({
-    'CormorantGaramond-BoldItalic': require('../../assets/fonts/CormorantGaramond_700Bold_Italic.ttf'),
-    'CormorantGaramond-SemiBoldItalic': require('../../assets/fonts/CormorantGaramond_600SemiBold_Italic.ttf'),
-  });
+  // Dynamic Content-Adaptive Sheet Measurement & Scroll Coordination
+  const [overlayHeight, setOverlayHeight] = useState<number>(0);
+  const [headerHeight, setHeaderHeight] = useState<number>(86);
+  const [contentHeight, setContentHeight] = useState<number>(0);
+
+  const previousContentHeightRef = useRef<number>(0);
+  const isInitialMeasurementRef = useRef<boolean>(true);
+
+  // Maximum allowed sheet height strictly preserves the existing 65% ceiling of the containing layout
+  const referenceParentHeight = overlayHeight > 0 ? overlayHeight : windowHeight;
+  const maxSheetHeight = Math.round(referenceParentHeight * 0.65);
+  const maxViewportHeight = Math.max(0, maxSheetHeight - headerHeight);
+  const isScrollable = contentHeight > maxViewportHeight && maxViewportHeight > 0;
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      isInitialMeasurementRef.current = true;
+    }
+  }, [isModalOpen]);
+
+  const handleOverlayLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = Math.round(e.nativeEvent.layout.height);
+    if (h > 0 && Math.abs(h - overlayHeight) > 2) {
+      setOverlayHeight(h);
+    }
+  }, [overlayHeight]);
+
+  const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = Math.round(e.nativeEvent.layout.height);
+    if (h > 0 && Math.abs(h - headerHeight) > 2) {
+      setHeaderHeight(h);
+    }
+  }, [headerHeight]);
+
+  const handleContentSizeChange = useCallback((_: number, height: number) => {
+    const rounded = Math.round(height);
+    if (rounded <= 0) return;
+    if (Math.abs(rounded - previousContentHeightRef.current) < 2) return;
+
+    if (!isInitialMeasurementRef.current) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } else {
+      isInitialMeasurementRef.current = false;
+    }
+
+    previousContentHeightRef.current = rounded;
+    setContentHeight(rounded);
+  }, []);
 
   const items = useMemo(() => events.slice(0, 10), [events]);
 
@@ -229,7 +283,7 @@ function HappeningTodayNativeComponent({
           </View>
         </View>
 
-        {/* View All Action Pill with Count Badge */}
+        {/* View All Action Pill with Count Badge (Matching Student Website .glass-header-island) */}
         <Pressable
           onPress={handleOpenViewAll}
           accessibilityRole="button"
@@ -237,25 +291,35 @@ function HappeningTodayNativeComponent({
           style={[
             styles.viewAllButton,
             {
-              backgroundColor: dark ? glass.dark.pillBg : glass.light.pillBg,
-              borderColor: dark ? glass.dark.pillBorder : glass.light.pillBorder,
-              borderWidth: 1,
+              backgroundColor: dark ? 'rgba(36, 37, 44, 0.85)' : 'rgba(255, 255, 255, 0.84)',
+              borderColor: dark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.90)',
+              borderWidth: 1.5,
             },
           ]}
         >
+          <BlurView
+            pointerEvents="none"
+            intensity={Platform.OS === 'ios' ? 25 : 15}
+            tint={dark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
           <SpecularTopRim dark={dark} height={1} />
-          <Text style={styles.viewAllText}>View All</Text>
+          <Text style={[styles.viewAllText, { color: dark ? '#fdba74' : '#ea580c' }]}>View All</Text>
           <View
             style={[
               styles.countBadge,
-              { backgroundColor: dark ? 'rgba(255,255,255,0.15)' : 'rgba(249,115,22,0.15)' },
+              {
+                backgroundColor: dark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(249, 115, 22, 0.15)',
+                borderColor: dark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(249, 115, 22, 0.25)',
+                borderWidth: 1,
+              },
             ]}
           >
             <Text style={[styles.countBadgeText, { color: dark ? '#ffffff' : '#c2410c' }]}>
               {events.length}
             </Text>
           </View>
-          <NativeIcon name="arrow-right" size={11} color="#ea580c" />
+          <NativeIcon name="arrow-right" size={11} color={dark ? '#fdba74' : '#ea580c'} strokeWidth={2.4} />
         </Pressable>
       </View>
 
@@ -330,9 +394,21 @@ function HappeningTodayNativeComponent({
                     Tap to view complete list
                   </Text>
                 </View>
-                <View style={styles.trailingActionRow}>
-                  <Text style={styles.trailingActionText}>View All</Text>
-                  <NativeIcon name="arrow-right" size={12} color="#ea580c" />
+                <View
+                  style={[
+                    styles.trailingActionRow,
+                    {
+                      backgroundColor: dark ? 'rgba(249, 115, 22, 0.20)' : 'rgba(249, 115, 22, 0.15)',
+                      borderColor: 'rgba(249, 115, 22, 0.30)',
+                      borderWidth: 1,
+                      borderRadius: 12,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4.5,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.trailingActionText, { color: dark ? '#fdba74' : '#c2410c' }]}>View All</Text>
+                  <NativeIcon name="arrow-right" size={12} color={dark ? '#fdba74' : '#ea580c'} strokeWidth={2.4} />
                 </View>
               </View>
             </Pressable>
@@ -351,22 +427,24 @@ function HappeningTodayNativeComponent({
         onRequestClose={() => setIsModalOpen(false)}
         statusBarTranslucent
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.modalOverlay} onLayout={handleOverlayLayout}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => setIsModalOpen(false)}
             accessibilityRole="button"
             accessibilityLabel="Close happening today modal"
           >
+            {/* Softly diffused backdrop blur (prevents underlying cards and images from interfering with foreground) */}
             <BlurView
-              intensity={dark ? 30 : 20}
+              intensity={Platform.OS === 'ios' ? 70 : 50}
               tint={dark ? 'dark' : 'systemMaterialDark'}
               style={StyleSheet.absoluteFill}
             />
+            {/* Translucent overlay between background and glass sheet */}
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: dark ? 'rgba(0,0,0,0.85)' : 'rgba(15,23,42,0.65)' },
+                { backgroundColor: dark ? 'rgba(0,0,0,0.55)' : 'rgba(15,23,42,0.35)' },
               ]}
             />
           </Pressable>
@@ -375,149 +453,177 @@ function HappeningTodayNativeComponent({
             style={[
               styles.modalSheet,
               {
-                backgroundColor: dark ? 'rgba(24, 26, 36, 0.82)' : 'rgba(255, 255, 255, 0.86)',
-                borderTopColor: dark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.95)',
+                borderTopColor: dark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(255, 255, 255, 0.95)',
                 borderTopWidth: 1.5,
                 borderLeftWidth: 0,
                 borderRightWidth: 0,
                 borderBottomWidth: 0,
+                maxHeight: maxSheetHeight,
               },
             ]}
           >
-            {/* Native Hardware Blur Backdrop */}
+            {/* Native Hardware Blur Surface (High-diffusion Frosted Glass) */}
             <BlurView
               pointerEvents="none"
-              intensity={dark ? 85 : 95}
+              intensity={Platform.OS === 'ios' ? 95 : 75}
               tint={dark ? 'dark' : 'light'}
               style={StyleSheet.absoluteFill}
             />
 
-            {/* Translucent Frosted Glass & Caustic Mesh Gradient matching Student Website */}
+            {/* Subtle Translucent Milky White / Obsidian Surface Wash (Secures perfect text readability while preserving glass transparency) */}
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  backgroundColor: dark ? 'rgba(18, 20, 28, 0.42)' : 'rgba(255, 255, 255, 0.48)',
+                },
+              ]}
+            />
+
+            {/* Apple VisionOS Luxury Glass Linear Gradient Overlay */}
             <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width="100%" height="100%">
               <Defs>
                 <LinearGradient id="modal-glass-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop
-                    offset="0%"
-                    stopColor={dark ? '#1a1d26' : '#ffffff'}
-                    stopOpacity={dark ? 0.98 : 0.96}
-                  />
-                  <Stop
-                    offset="50%"
-                    stopColor={dark ? '#14161f' : '#ffffff'}
-                    stopOpacity={dark ? 0.96 : 0.94}
-                  />
-                  <Stop
-                    offset="100%"
-                    stopColor={dark ? '#12141b' : '#ffffff'}
-                    stopOpacity={dark ? 0.95 : 0.92}
-                  />
+                  {dark ? [
+                    <Stop key="d0" offset="0%" stopColor="#1e212d" stopOpacity={0.65} />,
+                    <Stop key="d1" offset="45%" stopColor="#161822" stopOpacity={0.58} />,
+                    <Stop key="d2" offset="100%" stopColor="#12141c" stopOpacity={0.62} />,
+                  ] : [
+                    <Stop key="l0" offset="0%" stopColor="#ffffff" stopOpacity={0.62} />,
+                    <Stop key="l1" offset="45%" stopColor="#f8fafc" stopOpacity={0.52} />,
+                    <Stop key="l2" offset="100%" stopColor="#ffffff" stopOpacity={0.58} />,
+                  ]}
                 </LinearGradient>
-                <RadialGradient id="caustic-orange" cx="85%" cy="8%" rx="55%" ry="45%">
-                  <Stop offset="0%" stopColor="#f97316" stopOpacity="0.22" />
-                  <Stop offset="60%" stopColor="#f59e0b" stopOpacity="0.10" />
-                  <Stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+                {/* Caustic Glow 1: Top-Right Warm Amber (matching student website lines 507) */}
+                <RadialGradient id="caustic-orange" cx="90%" cy="5%" rx="65%" ry="45%">
+                  <Stop offset="0%" stopColor="#f97316" stopOpacity={dark ? 0.22 : 0.25} />
+                  <Stop offset="50%" stopColor="#f59e0b" stopOpacity={dark ? 0.10 : 0.12} />
+                  <Stop offset="100%" stopColor="#f97316" stopOpacity={0} />
                 </RadialGradient>
-                <RadialGradient id="caustic-blue" cx="12%" cy="92%" rx="55%" ry="45%">
-                  <Stop offset="0%" stopColor="#38bdf8" stopOpacity="0.18" />
-                  <Stop offset="60%" stopColor="#6366f1" stopOpacity="0.08" />
-                  <Stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+                {/* Caustic Glow 2: Bottom-Left Sky Indigo (matching student website lines 508) */}
+                <RadialGradient id="caustic-blue" cx="10%" cy="95%" rx="65%" ry="45%">
+                  <Stop offset="0%" stopColor="#38bdf8" stopOpacity={dark ? 0.18 : 0.20} />
+                  <Stop offset="50%" stopColor="#6366f1" stopOpacity={dark ? 0.08 : 0.10} />
+                  <Stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
+                </RadialGradient>
+                {/* Caustic Glow 3: Center Mid Amber Refraction (matching student website lines 509) */}
+                <RadialGradient id="caustic-mid" cx="40%" cy="50%" r="50%">
+                  <Stop offset="0%" stopColor="#ea580c" stopOpacity={dark ? 0.08 : 0.10} />
+                  <Stop offset="100%" stopColor="#ea580c" stopOpacity={0} />
                 </RadialGradient>
               </Defs>
               <SvgRect width="100%" height="100%" fill="url(#modal-glass-gradient)" />
               <SvgRect width="100%" height="100%" fill="url(#caustic-orange)" />
               <SvgRect width="100%" height="100%" fill="url(#caustic-blue)" />
+              <SvgRect width="100%" height="100%" fill="url(#caustic-mid)" />
             </Svg>
 
-            <SpecularTopRim dark={dark} height={1} />
+            <SpecularTopRim dark={dark} height={1.5} />
 
-            {/* Drag Handle Bar */}
-            <View style={styles.dragBarContainer}>
-              <View
-                style={[
-                  styles.dragBar,
-                  { backgroundColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.20)' },
-                ]}
-              />
-            </View>
-
-            {/* Modal Header */}
-            <View
-              style={[
-                styles.modalHeader,
-                { borderBottomColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' },
-              ]}
-            >
-              <View style={styles.modalHeaderInfo}>
-                {/* Glowing Calendar Jewel */}
-                <View style={styles.modalCalendarIcon}>
-                  <NativeIcon name="calendar-days" size={20} color="#ffffff" strokeWidth={2.2} />
-                </View>
-                <View style={styles.modalHeaderTitles}>
-                  {/* Title Row with Event Count Pill */}
-                  <View style={styles.modalTitleRow}>
-                    <Text
-                      style={[styles.modalTitleText, { color: dark ? '#ffffff' : '#0f172a' }]}
-                    >
-                      Happening Today
-                    </Text>
-                    <View
-                      style={[
-                        styles.modalLiveBadge,
-                        {
-                          backgroundColor: dark
-                            ? 'rgba(249,115,22,0.22)'
-                            : 'rgba(249,115,22,0.14)',
-                          borderColor: dark ? 'rgba(249,115,22,0.35)' : 'rgba(249,115,22,0.30)',
-                        },
-                      ]}
-                    >
-                      <View style={styles.livePulseDotInner} />
-                      <Text
-                        style={[
-                          styles.modalLiveBadgeText,
-                          { color: dark ? '#fdba74' : '#c2410c' },
-                        ]}
-                      >
-                        {events.length} {events.length === 1 ? 'Event' : 'Events'}
-                      </Text>
-                    </View>
-                  </View>
-                  {/* Subtitle: Date & Schedule */}
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.modalSubtitleDate,
-                      { color: dark ? '#cbd5e1' : '#64748b' },
-                    ]}
-                  >
-                    {formatTodayDate()}
-                  </Text>
-                </View>
+            {/* Fixed Header Group: Drag Handle Bar + Modal Header (Permanently outside scrolling content) */}
+            <View onLayout={handleHeaderLayout} style={styles.modalHeaderGroup}>
+              {/* Drag Handle Bar */}
+              <View style={styles.dragBarContainer}>
+                <View
+                  style={[
+                    styles.dragBar,
+                    { backgroundColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.20)' },
+                  ]}
+                />
               </View>
 
-              {/* Close Button matching Frosted Glass Jewel */}
-              <Pressable
-                onPress={() => setIsModalOpen(false)}
-                accessibilityRole="button"
-                accessibilityLabel="Close modal"
+              {/* Modal Header */}
+              <View
                 style={[
-                  styles.modalCloseButton,
-                  {
-                    backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)',
-                    borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.90)',
-                  },
+                  styles.modalHeader,
+                  { borderBottomColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' },
                 ]}
               >
-                <NativeIcon name="x" size={14} strokeWidth={2.4} color={dark ? '#f1f5f9' : '#334155'} />
-              </Pressable>
+                <View style={styles.modalHeaderInfo}>
+                  {/* Glowing Calendar Jewel */}
+                  <View style={styles.modalCalendarIcon}>
+                    <NativeIcon name="calendar-days" size={20} color="#ffffff" strokeWidth={2.2} />
+                  </View>
+                  <View style={styles.modalHeaderTitles}>
+                    {/* Title Row with Event Count Pill */}
+                    <View style={styles.modalTitleRow}>
+                      <Text
+                        style={[styles.modalTitleText, { color: dark ? '#ffffff' : '#0f172a' }]}
+                      >
+                        Happening Today
+                      </Text>
+                      <View
+                        style={[
+                          styles.modalLiveBadge,
+                          {
+                            backgroundColor: dark
+                              ? 'rgba(249,115,22,0.22)'
+                              : 'rgba(249,115,22,0.14)',
+                            borderColor: dark ? 'rgba(249,115,22,0.35)' : 'rgba(249,115,22,0.30)',
+                          },
+                        ]}
+                      >
+                        <View style={styles.livePulseDotInner} />
+                        <Text
+                          style={[
+                            styles.modalLiveBadgeText,
+                            { color: dark ? '#fdba74' : '#c2410c' },
+                          ]}
+                        >
+                          {events.length} {events.length === 1 ? 'Event' : 'Events'}
+                        </Text>
+                      </View>
+                    </View>
+                    {/* Subtitle: Date & Schedule */}
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.modalSubtitleDate,
+                        { color: dark ? '#cbd5e1' : '#475569' },
+                      ]}
+                    >
+                      {formatTodayDate()}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Close Button matching Frosted Glass Jewel */}
+                <Pressable
+                  onPress={() => setIsModalOpen(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close modal"
+                  style={[
+                    styles.modalCloseButton,
+                    {
+                      backgroundColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.92)',
+                      borderColor: dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.08)',
+                    },
+                  ]}
+                >
+                  <NativeIcon name="x" size={14} strokeWidth={2.4} color={dark ? '#f8fafc' : '#1e293b'} />
+                </Pressable>
+              </View>
             </View>
 
-            {/* Modal Event Schedule List matching Student Website */}
-            <View style={styles.modalListWrapper}>
+            {/* Modal Event Schedule List (Dynamically bounded to viewport below fixed header) */}
+            <View
+              style={[
+                styles.modalListWrapper,
+                maxViewportHeight > 0 ? { maxHeight: maxViewportHeight } : undefined,
+              ]}
+            >
               <ScrollView
                 style={styles.modalList}
-                contentContainerStyle={styles.modalListContent}
+                contentContainerStyle={[
+                  styles.modalListContent,
+                  { paddingBottom: Math.max(28, insets.bottom + 16) },
+                ]}
                 showsVerticalScrollIndicator={false}
+                scrollEnabled={isScrollable}
+                bounces={isScrollable}
+                alwaysBounceVertical={false}
+                onContentSizeChange={handleContentSizeChange}
               >
                 {events.length === 0 ? (
                   <View style={styles.modalEmptyState}>
@@ -552,7 +658,7 @@ function HappeningTodayNativeComponent({
                     <Text
                       style={[
                         styles.emptyStateSubtitle,
-                        { color: dark ? '#94a3b8' : '#64748b' },
+                        { color: dark ? '#cbd5e1' : '#475569' },
                       ]}
                     >
                       Stay tuned for upcoming workshops, guest lectures, and campus activities scheduled later this week.
@@ -561,7 +667,7 @@ function HappeningTodayNativeComponent({
                 ) : (
                   events.map((evt, idx) => {
                     const isLast = idx === events.length - 1;
-                    const timeString = formatEventTime(evt.start_at);
+                    const scheduleString = resolveEventSchedule(evt.start_at, evt.end_at);
 
                     return (
                       <React.Fragment key={evt.id || idx}>
@@ -597,14 +703,14 @@ function HappeningTodayNativeComponent({
                                 name="chevron-right"
                                 size={16}
                                 strokeWidth={2.4}
-                                color={dark ? '#94a3b8' : '#94a3b8'}
+                                color={dark ? '#94a3b8' : '#64748b'}
                               />
                             </View>
                           </View>
 
-                          {/* Row 2: Premium Schedule Strip (Time on Left, Venue on Right) */}
-                          <View style={styles.modalRow2}>
-                            {/* Left: Time */}
+                          {/* Row 2: Schedule Strip (Date & Time on top, Venue flows down below with full width) */}
+                          <View style={styles.modalScheduleStack}>
+                            {/* Line 1: Date & Time */}
                             <View style={styles.modalScheduleLeft}>
                               <View
                                 style={[
@@ -621,17 +727,18 @@ function HappeningTodayNativeComponent({
                               </View>
                               <Text
                                 numberOfLines={1}
+                                ellipsizeMode="tail"
                                 style={[
                                   styles.modalScheduleTimeText,
-                                  { color: dark ? '#ffffff' : '#0f172a' },
+                                  { color: dark ? '#f8fafc' : '#0f172a' },
                                 ]}
                               >
-                                {timeString}
+                                {scheduleString}
                               </Text>
                             </View>
 
-                            {/* Right: Venue */}
-                            <View style={styles.modalScheduleRight}>
+                            {/* Line 2: Venue (flows down here with full card width) */}
+                            <View style={styles.modalScheduleVenueRow}>
                               <View
                                 style={[
                                   styles.modalScheduleIconBox,
@@ -646,7 +753,8 @@ function HappeningTodayNativeComponent({
                                 <NativeIcon name="map-pin" size={13} color="#d97706" strokeWidth={2.6} />
                               </View>
                               <Text
-                                numberOfLines={1}
+                                numberOfLines={2}
+                                ellipsizeMode="tail"
                                 style={[
                                   styles.modalScheduleVenueText,
                                   { color: dark ? '#cbd5e1' : '#334155' },
@@ -689,16 +797,18 @@ function HappeningTodayNativeComponent({
                 )}
               </ScrollView>
 
-              {/* Bottom Subtle Optical Fade Overlay matching Student Website */}
-              <View pointerEvents="none" style={styles.modalBottomFade}>
-                <Svg width="100%" height={24}>
-                  <LinearGradient id="modalBottomFade" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <Stop offset="0%" stopColor={dark ? '#1c1c1e' : '#ffffff'} stopOpacity={0} />
-                    <Stop offset="100%" stopColor={dark ? '#1c1c1e' : '#ffffff'} stopOpacity={0.85} />
-                  </LinearGradient>
-                  <SvgRect width="100%" height={24} fill="url(#modalBottomFade)" />
-                </Svg>
-              </View>
+              {/* Bottom Subtle Optical Fade Overlay matching Student Website (only when additional scrollable content exists) */}
+              {isScrollable && (
+                <View pointerEvents="none" style={styles.modalBottomFade}>
+                  <Svg width="100%" height={24}>
+                    <LinearGradient id="modalBottomFade" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <Stop offset="0%" stopColor={dark ? '#161820' : '#ffffff'} stopOpacity={0} />
+                      <Stop offset="100%" stopColor={dark ? '#161820' : '#ffffff'} stopOpacity={dark ? 0.35 : 0.25} />
+                    </LinearGradient>
+                    <SvgRect width="100%" height={24} fill="url(#modalBottomFade)" />
+                  </Svg>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -780,11 +890,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     paddingVertical: 6,
     borderRadius: radii.pill,
-    borderWidth: 1,
-    ...shadows.glass,
+    overflow: 'hidden',
+    position: 'relative',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   viewAllText: {
     color: '#ea580c',
@@ -879,7 +1000,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   bottomDeck: {
-    height: 88,
+    minHeight: 96,
     paddingHorizontal: 14,
     paddingVertical: 10,
     justifyContent: 'space-between',
@@ -895,14 +1016,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    width: '100%',
   },
-  metaInlineGroup: {
+  deckVenueRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    alignItems: 'flex-start',
+    gap: 5,
+    width: '100%',
+  },
+  deckVenueIcon: {
+    marginTop: 2,
+  },
+  deckVenueText: {
+    fontFamily: typography.headingFamily,
+    fontSize: 11.5,
+    fontWeight: '700',
+    letterSpacing: -0.1,
     flex: 1,
-    overflow: 'hidden',
+    lineHeight: 15,
   },
   metaInlineItem: {
     flexDirection: 'row',
@@ -911,8 +1042,11 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   metaInlineText: {
+    fontFamily: typography.headingFamily,
     fontSize: 11.5,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: -0.1,
+    flexShrink: 1,
   },
   inlineActionWrap: {
     flexDirection: 'row',
@@ -977,7 +1111,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   trailingBottomDeck: {
-    height: 88,
+    minHeight: 96,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -1009,17 +1143,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.60)',
   },
   modalSheet: {
-    height: '62%',
-    maxHeight: '78%',
+    maxHeight: '65%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    elevation: 24,
+    backgroundColor: 'transparent',
+    flexShrink: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: -14 },
+        shadowOpacity: 0.22,
+        shadowRadius: 28,
+      },
+      android: {
+        elevation: 20,
+      },
+    }),
+  },
+  modalHeaderGroup: {
+    width: '100%',
+    flexShrink: 0,
   },
   causticTopRight: {
     position: 'absolute',
@@ -1096,8 +1241,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   modalSubtitleDate: {
-    fontSize: 11.5,
-    fontWeight: '600',
+    fontFamily: typography.headingFamily,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
     marginTop: 2,
   },
   modalLiveBadge: {
@@ -1130,11 +1277,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalListWrapper: {
-    flex: 1,
     position: 'relative',
+    flexShrink: 1,
   },
   modalList: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 1,
   },
   modalListContent: {
     paddingHorizontal: 16,
@@ -1184,10 +1332,11 @@ const styles = StyleSheet.create({
   },
   modalItemTitle: {
     flex: 1,
-    fontFamily: typography.cormorantItalic,
-    fontSize: 21,
-    lineHeight: 26,
-    letterSpacing: 0,
+    fontFamily: typography.headingFamily,
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 22,
+    letterSpacing: -0.3,
   },
   modalArrowBox: {
     width: 20,
@@ -1197,46 +1346,48 @@ const styles = StyleSheet.create({
     marginTop: 2,
     flexShrink: 0,
   },
-  modalRow2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+  modalScheduleStack: {
+    gap: 7,
+    width: '100%',
     paddingTop: 2,
   },
   modalScheduleLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flexShrink: 0,
+    gap: 8,
+    width: '100%',
   },
-  modalScheduleRight: {
+  modalScheduleVenueRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-    minWidth: 0,
-    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    gap: 8,
+    width: '100%',
   },
   modalScheduleIconBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 7,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    marginTop: 1,
   },
   modalScheduleTimeText: {
     fontSize: 13,
     fontWeight: '800',
     fontFamily: typography.headingFamily,
-    letterSpacing: -0.2,
+    letterSpacing: -0.15,
+    flex: 1,
   },
   modalScheduleVenueText: {
     fontSize: 13,
     fontWeight: '700',
     fontFamily: typography.headingFamily,
+    letterSpacing: -0.1,
+    flex: 1,
+    lineHeight: 18,
+    marginTop: 1,
   },
   etchedDividerWrap: {
     marginHorizontal: 8,

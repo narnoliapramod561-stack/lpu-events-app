@@ -40,9 +40,9 @@ const isEvent = (value: unknown): value is EventFeedItem =>
   typeof value.name === 'string' &&
   typeof value.start_at === 'string' &&
   typeof value.end_at === 'string' &&
-  typeof value.venue_name === 'string' &&
-  (value.registration_mode === 'NONE' || value.registration_mode === 'EXTERNAL') &&
-  (value.pricing_type === 'FREE' || value.pricing_type === 'PAID');
+  (typeof value.venue_name === 'string' || value.venue_name === null || value.venue_name === undefined) &&
+  (value.registration_mode === undefined || value.registration_mode === 'NONE' || value.registration_mode === 'EXTERNAL') &&
+  (value.pricing_type === undefined || value.pricing_type === 'FREE' || value.pricing_type === 'PAID');
 const isEventList = (value: unknown): value is EventFeedItem[] =>
   Array.isArray(value) && value.every(isEvent);
 const isHomepage = (value: unknown): value is HomepageBundle =>
@@ -270,13 +270,41 @@ export class PublicApiClient {
     return `${PUBLIC_API_BASE_URL}/${path.replace(/^\/+/, '')}`;
   }
 
+  async checkCacheVersion(): Promise<number | null> {
+    try {
+      const res = await this.fetchFn(this.apiUrl('version'), {
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+      });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { ok?: boolean; version?: number };
+      return typeof body.version === 'number' ? body.version : null;
+    } catch {
+      return null;
+    }
+  }
+
   async getHomepage(forceRefresh = false): Promise<ApiResult<HomepageBundle>> {
-    const cached = await this.cache.read('homepage', isHomepage, { allowStale: true });
+    if (forceRefresh) {
+      const remoteVersion = await this.checkCacheVersion();
+      const storedRevision = await this.cache.getRevision('homepage');
+      if (remoteVersion && storedRevision && String(remoteVersion) !== storedRevision) {
+        await this.cache.remove('homepage');
+        this.cache.clearMemory();
+      }
+    }
+
+    const cached = await this.cache.read('homepage', isHomepage, { allowStale: !forceRefresh });
     const result = await this.cached(
       'homepage',
       isHomepage,
       5 * 60_000,
-      () => this.request(this.apiUrl('homepage'), isHomepage, cached?.revision, cached?.data, forceRefresh),
+      () => this.request(
+        this.apiUrl('homepage'),
+        isHomepage,
+        forceRefresh ? undefined : cached?.revision,
+        cached?.data,
+        forceRefresh
+      ),
       undefined,
       forceRefresh
     );
@@ -297,12 +325,18 @@ export class PublicApiClient {
     }
     if (filters.show_past) params.set('show_past', 'true');
     const key = `events:${params.toString()}`;
-    const cached = await this.cache.read(key, isEventList, { allowStale: true });
+    const cached = await this.cache.read(key, isEventList, { allowStale: !forceRefresh });
     const result = await this.cached(
       key,
       isEventList,
       60_000,
-      () => this.request(`${this.apiUrl('events')}?${params}`, isEventList, cached?.revision, cached?.data, forceRefresh),
+      () => this.request(
+        `${this.apiUrl('events')}?${params}`,
+        isEventList,
+        forceRefresh ? undefined : cached?.revision,
+        cached?.data,
+        forceRefresh
+      ),
       undefined,
       forceRefresh
     );
@@ -334,7 +368,7 @@ export class PublicApiClient {
     return result;
   }
 
-  async getEventDetails(identifier: string): Promise<ApiResult<EventDetails>> {
+  async getEventDetails(identifier: string, forceRefresh = false): Promise<ApiResult<EventDetails>> {
     const clean = identifier.trim();
     if (!clean) return { data: null, error: error('INVALID_ARGUMENT', 'A valid event identifier is required.') };
 
@@ -343,12 +377,20 @@ export class PublicApiClient {
 
     if (targetUuid) {
       const key = `detail:${targetUuid}`;
-      const cached = await this.cache.read(key, isDetails, { allowStale: true });
+      const cached = await this.cache.read(key, isDetails, { allowStale: !forceRefresh });
       const res = await this.cached(
         key,
         isDetails,
         120_000,
-        () => this.request(this.apiUrl(`events/${encodeURIComponent(targetUuid)}`), isDetails, cached?.revision, cached?.data)
+        () => this.request(
+          this.apiUrl(`events/${encodeURIComponent(targetUuid)}`),
+          isDetails,
+          forceRefresh ? undefined : cached?.revision,
+          cached?.data,
+          forceRefresh
+        ),
+        undefined,
+        forceRefresh
       );
 
       if (res.data) {
@@ -371,15 +413,17 @@ export class PublicApiClient {
     // Slug-based identifier (e.g., 'hackathon-2026')
     const slug = slugify(clean);
     const slugKey = `detail:${slug}`;
-    const cachedSlug = await this.cache.read(slugKey, isDetails, { allowStale: true });
-    if (cachedSlug && !cachedSlug.stale) {
-      return { data: cachedSlug.data, error: null, fromCache: true };
+    if (!forceRefresh) {
+      const cachedSlug = await this.cache.read(slugKey, isDetails, { allowStale: true });
+      if (cachedSlug && !cachedSlug.stale) {
+        return { data: cachedSlug.data, error: null, fromCache: true };
+      }
     }
 
     // 1. Check in-memory feed map first
     const preloaded = this.getPreloadedEvent(slug);
     if (preloaded && isUuid(preloaded.id)) {
-      return this.getEventDetails(preloaded.id);
+      return this.getEventDetails(preloaded.id, forceRefresh);
     }
 
     // 2. Slug lookup via search endpoint
@@ -390,7 +434,7 @@ export class PublicApiClient {
         (e) => slugify(e.name) === slug || e.id.toLowerCase() === slug || e.id.toLowerCase() === clean.toLowerCase()
       );
       if (match && isUuid(match.id)) {
-        const detailRes = await this.getEventDetails(match.id);
+        const detailRes = await this.getEventDetails(match.id, forceRefresh);
         if (detailRes.data) {
           await this.cache.write(slugKey, detailRes.data, 120_000, 120_000);
           return detailRes;

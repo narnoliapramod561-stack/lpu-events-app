@@ -18,9 +18,10 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { NativeIcon } from './NativeIcon';
+import { typography } from '../design/tokens';
 import type { EventFeedItem } from '../api/types';
 import { eventImageSource } from '../features/homepageModels';
-import { formatEventDateRange, formatEventTime } from '../features/eventHub';
+import { formatEventDateRange, formatEventTime, isPaidEvent } from '../features/eventHub';
 
 export interface LpuGlassCardProps {
   /** Optional full event entity from LPU Events API */
@@ -71,6 +72,13 @@ export const LpuGlassCard = memo(function LpuGlassCard({
   const resolvedVenue = event?.venue_name ?? venue ?? 'LPU Campus';
   const resolvedOrganizer = event?.organizations?.name ?? organizer ?? 'LPU Organization';
   const resolvedIsTrending = event?.is_trending ?? isTrending ?? false;
+  const resolvedIsPaid = isPaidEvent(event);
+  const resolvedPriceTag =
+    resolvedIsPaid && event?.price_amount !== undefined && event?.price_amount !== null && Number(event.price_amount) > 0
+      ? `₹${event.price_amount}`
+      : resolvedIsPaid
+      ? 'PAID'
+      : 'FREE';
 
   const resolvedImage =
     imageSource ??
@@ -147,6 +155,29 @@ export const LpuGlassCard = memo(function LpuGlassCard({
             </View>
           )}
 
+          {/* Top-Right Pricing Badge (Parity with Student Website) */}
+          <View
+            style={[
+              styles.pricingBadge,
+              resolvedIsPaid ? styles.paidPricingBadge : styles.freePricingBadge,
+            ]}
+          >
+            <NativeIcon
+              name="ticket"
+              size={11}
+              color={resolvedIsPaid ? '#f59e0b' : '#10b981'}
+              strokeWidth={2.4}
+            />
+            <Text
+              style={[
+                styles.pricingBadgeText,
+                resolvedIsPaid ? styles.paidPricingBadgeText : styles.freePricingBadgeText,
+              ]}
+            >
+              {resolvedPriceTag}
+            </Text>
+          </View>
+
           {/* Bottom Category Overlay Ribbon ("ACADEMICS") */}
           <View style={styles.categoryRibbon}>
             <Text numberOfLines={1} style={styles.categoryRibbonText}>
@@ -207,7 +238,8 @@ export const LpuGlassCard = memo(function LpuGlassCard({
               <View style={styles.metaTextCol}>
                 <Text style={styles.metaLabel}>VENUE</Text>
                 <Text
-                  numberOfLines={1}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
                   style={[styles.metaValue, dark && styles.textLight]}
                 >
                   {resolvedVenue}
@@ -367,6 +399,42 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  // Top-Right Pricing Badge
+  pricingBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4.5,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 20,
+    backdropFilter: 'blur(12px)',
+    borderWidth: 1,
+    zIndex: 10,
+  },
+  paidPricingBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+  },
+  freePricingBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.70)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  pricingBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    fontFamily: typography.headingFamily,
+  },
+  paidPricingBadgeText: {
+    color: '#fbbf24',
+  },
+  freePricingBadgeText: {
+    color: '#34d399',
+  },
+
   // Dark Category Overlay Ribbon ("ACADEMICS")
   categoryRibbon: {
     position: 'absolute',
@@ -421,7 +489,7 @@ const styles = StyleSheet.create({
 
   metaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
   },
 
@@ -432,6 +500,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+    marginTop: 1,
   },
 
   iconWellOrange: {

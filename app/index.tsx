@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CampusBackground } from '../src/components/CampusBackground';
 import { SplashScreen } from '../src/components/SplashScreen';
 import { HomeHeader } from '../src/components/HomeHeader';
@@ -21,7 +21,6 @@ import { NativeFooter } from '../src/components/NativeFooter';
 import { MaintenanceView } from '../src/components/MaintenanceView';
 import { SiteNoticeBanner } from '../src/components/SiteNoticeBanner';
 import { colors, glass, radii, spacing } from '../src/design/tokens';
-import { BlurTargetView } from 'expo-blur';
 import { PublicApiClient } from '../src/api/publicApi';
 import type { EventFeedItem, HomepageBundle } from '../src/api/types';
 import {
@@ -66,6 +65,7 @@ function Skeleton({ dark }: { dark: boolean }) {
 
 export default function HomeScreen() {
   const { dark, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [bundle, setBundle] = useState<HomepageBundle | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,7 +77,6 @@ export default function HomeScreen() {
   const [isTrendingActive, setIsTrendingActive] = useState(false);
   const [isSplashVisible, setSplashVisible] = useState(true);
   const scrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
-  const blurTarget = useRef<React.ElementRef<typeof View>>(null);
   const palette = dark ? colors.dark : colors.light;
 
   const loadHomepage = useCallback(async (forceRefresh = false) => {
@@ -178,7 +177,7 @@ export default function HomeScreen() {
   const handleSelectCategories = () => {
     if (categoriesOffset !== null) {
       scrollRef.current?.scrollTo({
-        y: Math.max(0, categoriesOffset - spacing.md),
+        y: Math.max(0, categoriesOffset - (insets.top + 50)),
         animated: true,
       });
     }
@@ -205,18 +204,22 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: palette.background }]}
-      edges={['top', 'bottom']}
-    >
-      <View style={styles.page}>
-        <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
-          <CampusBackground dark={dark} />
+    <View style={styles.container}>
+      {/* Root-level screen background layer behind all UI elements including status bar and header */}
+      <CampusBackground dark={dark} />
 
+      <SafeAreaView
+        style={styles.container}
+        edges={['bottom']}
+      >
+        <View style={styles.page}>
           <ScrollView
             ref={scrollRef}
             style={styles.scroll}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[
+              styles.content,
+              { paddingTop: insets.top + 54 },
+            ]}
             showsVerticalScrollIndicator={false}
             bounces={true}
             alwaysBounceVertical={true}
@@ -228,7 +231,7 @@ export default function HomeScreen() {
                 tintColor={palette.primary}
                 colors={[palette.primary]}
                 progressBackgroundColor={dark ? '#1c1c22' : '#ffffff'}
-                progressViewOffset={Platform.OS === 'android' ? 68 : 0}
+                progressViewOffset={Platform.OS === 'android' ? insets.top + 50 : 0}
               />
             }
           >
@@ -319,12 +322,10 @@ export default function HomeScreen() {
               </View>
             ) : null}
           </ScrollView>
-        </BlurTargetView>
 
-        <HomeHeader
-          style={styles.fixedHeader}
-          blurTarget={blurTarget}
-          dark={dark}
+          <HomeHeader
+            style={styles.fixedHeader}
+            dark={dark}
           onToggleTheme={toggleTheme}
           onSearch={setEventHubQuery}
           onSelectCategories={handleSelectCategories}
@@ -332,7 +333,7 @@ export default function HomeScreen() {
             setIsTrendingActive(true);
             if (categoriesOffset !== null) {
               scrollRef.current?.scrollTo({
-                y: Math.max(0, categoriesOffset - spacing.md),
+                y: Math.max(0, categoriesOffset - (insets.top + 50)),
                 animated: true,
               });
             }
@@ -344,9 +345,9 @@ export default function HomeScreen() {
             void loadHomepage(true);
           }}
           isTrendingActive={isTrendingActive}
+          hideBrandLogo={isSplashVisible}
         />
       </View>
-      {isSplashVisible ? <SplashScreen onFinished={finishSplash} /> : null}
       {loading && !bundle ? (
         <ActivityIndicator
           accessibilityLabel="Loading homepage"
@@ -355,15 +356,17 @@ export default function HomeScreen() {
         />
       ) : null}
     </SafeAreaView>
-  );
+    {isSplashVisible ? <SplashScreen onFinished={finishSplash} /> : null}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  page: { flex: 1 },
-  scroll: { flex: 1 },
-  content: { paddingTop: 72, paddingBottom: spacing.section },
-  fixedHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, elevation: 5 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  page: { flex: 1, backgroundColor: 'transparent' },
+  scroll: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingTop: 54, paddingBottom: spacing.section },
+  fixedHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, backgroundColor: 'transparent' },
   skeletonGroup: { marginHorizontal: spacing.gutter, marginTop: spacing.md },
   skeletonHero: { height: 230, borderRadius: radii.xl },
   skeletonTitle: { width: 150, height: 20, borderRadius: radii.xs, marginTop: spacing.section },

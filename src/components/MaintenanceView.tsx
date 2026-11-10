@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LpuEventsLogo } from './LpuEventsLogo';
 import { NativeIcon } from './NativeIcon';
 import { radii, spacing, typography } from '../design/tokens';
@@ -28,6 +28,7 @@ export function MaintenanceView({
   contactEmail = 'support@lpuevents.live',
 }: MaintenanceViewProps) {
   const [retrying, setRetrying] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const formattedResumption = useMemo(() => {
     if (!estimatedResumption || !estimatedResumption.trim()) return null;
@@ -66,9 +67,9 @@ export function MaintenanceView({
       : 'All registered event tickets, team rosters, and student submissions remain fully secure.';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       {/* Top Header Navigation Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <View style={styles.brandRow}>
           <LpuEventsLogo size={42} />
           <View style={styles.brandTextWrap}>

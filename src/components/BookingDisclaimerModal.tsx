@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { NativeIcon } from './NativeIcon';
 import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
+import { normalizeExternalUrl } from '../utils/externalLinks';
 
 interface BookingDisclaimerModalProps {
   visible: boolean;
@@ -24,14 +25,13 @@ export function BookingDisclaimerModal({
 
   const eventName = event.name || 'this event';
   const organizerName = event.organizations?.name || 'the event organizer';
-  const targetUrl = event.external_registration_url || '';
+  const targetUrl = normalizeExternalUrl(event.external_registration_url) || event.external_registration_url || '';
 
   let targetHost = 'External Partner';
   try {
     if (targetUrl) {
-      // Basic hostname extraction for native
-      const match = targetUrl.match(/^(?:https?:\/\/)?(?:www\.)?([^\/\?#]+)/i);
-      if (match && match[1]) targetHost = match[1];
+      const parsed = new URL(targetUrl);
+      targetHost = parsed.hostname.replace(/^www\./i, '');
     }
   } catch {
     targetHost = 'External Partner';

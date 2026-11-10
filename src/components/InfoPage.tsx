@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { NativeIcon } from './NativeIcon';
 import { LpuEventsLogo } from './LpuEventsLogo';
@@ -101,12 +101,21 @@ export function InfoPage({ kind, dark }: { kind: InfoPageKind; dark: boolean }) 
 }
 
 function PageShell({ dark, title, children }: { dark: boolean; title: string; children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
   const palette = dark ? colors.dark : colors.light;
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/'); };
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={{ flex: 1, backgroundColor: palette.background }}>
       <CampusBackground dark={dark} />
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingTop: insets.top + spacing.gutter,
+            paddingBottom: Math.max(insets.bottom, spacing.gutter),
+          },
+        ]}
+      >
         <View style={styles.topbar}>
           <Pressable
             onPress={goBack}
@@ -127,7 +136,7 @@ function PageShell({ dark, title, children }: { dark: boolean; title: string; ch
         </View>
         {children}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

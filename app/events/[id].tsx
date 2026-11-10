@@ -12,24 +12,19 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  UIManager,
   View,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PublicApiClient } from '../../src/api/publicApi';
 import type { EventDetails } from '../../src/api/types';
 import { eventImageSource } from '../../src/features/homepageModels';
-import { formatEventDateRange, formatEventTimeRange } from '../../src/features/eventHub';
+import { formatEventDateRange, formatEventTimeRange, isPaidEvent } from '../../src/features/eventHub';
 import { colors, glass, radii, shadows, spacing, typography } from '../../src/design/tokens';
 import { BlurView } from 'expo-blur';
 import { NativeIcon, type IconName } from '../../src/components/NativeIcon';
 import { useTheme } from '../../src/theme/ThemeContext';
-import { isSafeExternalUrl, openExternalUrl } from '../../src/utils/externalLinks';
+import { isSafeExternalUrl, normalizeExternalUrl, openExternalUrl } from '../../src/utils/externalLinks';
 import { extractEventId } from '../../src/utils/slug';
 import { BookingDisclaimerModal } from '../../src/components/BookingDisclaimerModal';
 import { ShareModal } from '../../src/components/ShareModal';
@@ -146,9 +141,34 @@ export default function EventDetailsScreen() {
       setDetailsLoading(true);
       setErrorMessage(null);
 
-      const result = await api.getEventDetails(rawId);
+      const result = await api.getEventDetails(rawId, force);
       if (result.data) {
-        setEvent(result.data);
+        setEvent((prev) => {
+          const incoming = result.data!;
+          return {
+            ...incoming,
+            external_registration_url:
+              incoming.external_registration_url ||
+              prev?.external_registration_url ||
+              initialEvent?.external_registration_url ||
+              null,
+            registration_mode:
+              incoming.registration_mode && incoming.registration_mode !== 'NONE'
+                ? incoming.registration_mode
+                : (prev?.registration_mode && prev.registration_mode !== 'NONE'
+                    ? prev.registration_mode
+                    : (initialEvent?.registration_mode || 'NONE')),
+            pricing_type:
+              incoming.pricing_type ||
+              prev?.pricing_type ||
+              initialEvent?.pricing_type ||
+              'FREE',
+            price_amount:
+              incoming.price_amount !== undefined && incoming.price_amount !== null
+                ? incoming.price_amount
+                : (prev?.price_amount ?? initialEvent?.price_amount ?? 0),
+          };
+        });
         setImageFailed(false);
         // Pure analytics view tracking (debounced at edge)
         void api.incrementEventView(result.data.id);
@@ -268,16 +288,18 @@ export default function EventDetailsScreen() {
     }
   };
 
-  const externalUrl = isSafeExternalUrl(event?.external_registration_url) ? event.external_registration_url : null;
+  const externalUrl = useMemo(() => {
+    if (!event?.external_registration_url) return null;
+    const normalized = normalizeExternalUrl(event.external_registration_url);
+    if (normalized && isSafeExternalUrl(normalized)) return normalized;
+    return isSafeExternalUrl(event.external_registration_url) ? event.external_registration_url : null;
+  }, [event?.external_registration_url]);
   const image = event && !imageFailed ? eventImageSource(event) : undefined;
   const categoryName = (event?.categories?.name || 'CAMPUS EVENT').toUpperCase();
 
-  const isPaid =
-    (event?.pricing_type === 'PAID' ||
-      (typeof event?.price_amount === 'number' && event.price_amount > 0)) &&
-    event?.pricing_type !== 'FREE';
+  const isPaid = isPaidEvent(event);
   const priceDisplay =
-    isPaid && event?.price_amount !== undefined && event?.price_amount !== null
+    isPaid && event?.price_amount !== undefined && event?.price_amount !== null && Number(event.price_amount) > 0
       ? `₹${event.price_amount}`
       : isPaid
       ? 'Paid'
@@ -290,8 +312,13 @@ export default function EventDetailsScreen() {
   };
 
   const handleConfirmBooking = async () => {
+    const urlToOpen = externalUrl;
     setBookingModalVisible(false);
-    if (externalUrl) await openExternalUrl(externalUrl, 'registration');
+    if (urlToOpen) {
+      setTimeout(() => {
+        void openExternalUrl(urlToOpen, 'registration');
+      }, 100);
+    }
   };
 
   const goBack = () => {
@@ -300,13 +327,14 @@ export default function EventDetailsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       <CampusBackground dark={dark} blurred />
 
       {/* Main Content Area */}
       <ScrollView
         contentContainerStyle={[
           styles.content,
+          { paddingTop: insets.top + spacing.sm },
           externalUrl ? { paddingBottom: 100 + bottomInset } : { paddingBottom: 36 + bottomInset },
         ]}
         showsVerticalScrollIndicator={false}
@@ -320,6 +348,7 @@ export default function EventDetailsScreen() {
             tintColor={palette.primary}
             colors={[palette.primary]}
             progressBackgroundColor={dark ? '#1c1c22' : '#ffffff'}
+            progressViewOffset={Platform.OS === 'android' ? insets.top + 10 : 0}
           />
         }
       >
@@ -504,9 +533,47 @@ export default function EventDetailsScreen() {
                   <Text numberOfLines={1} style={[styles.organizerName, { color: palette.text }]}>
                     {event.organizations?.name || 'Lovely Professional University'}
                   </Text>
+                  <View style={styles.organizerStatusRow}>
+                    <Text style={[styles.organizerStatusMuted, { color: dark ? '#a1a1aa' : '#64748b' }]}>
+                      Verified Host
+                    </Text>
+                    <Text style={[styles.organizerStatusDot, { color: dark ? '#52525b' : '#cbd5e1' }]}>·</Text>
+                    <Text style={styles.organizerStatusGreen}>Official Organization</Text>
+                  </View>
                 </View>
               </View>
             </LiquidGlassCard>
+
+            {/* Admission & Attendee Check-in Card (Displayed when no external registration link is attached) */}
+            {!externalUrl && (
+              <LiquidGlassCard
+                dark={dark}
+                borderRadius={radii.xl}
+                tintColor={dark ? glass.dark.panelBg : glass.light.panelBg}
+                borderColor={dark ? glass.dark.border : glass.light.border}
+                style={styles.organizerPanelWrapper}
+                contentStyle={styles.organizerPanelContent}
+              >
+                <View style={styles.organizerRow}>
+                  <View style={[styles.organizerIconBox, { backgroundColor: 'rgba(234, 88, 12, 0.12)', borderColor: 'rgba(234, 88, 12, 0.25)' }]}>
+                    <NativeIcon name="ticket" size={19} color="#ea580c" strokeWidth={2.4} />
+                  </View>
+                  <View style={styles.organizerInfo}>
+                    <View style={styles.organizerEyebrowRow}>
+                      <Text style={styles.organizerEyebrow}>ADMISSION & TICKETS</Text>
+                    </View>
+                    <Text style={[styles.organizerName, { color: palette.text }]}>
+                      {isPaid ? priceDisplay : 'Free Entry'}
+                    </Text>
+                    <Text style={[styles.organizerStatusMuted, { color: dark ? '#a1a1aa' : '#64748b', marginTop: 2 }]}>
+                      {event.status === 'CANCELLED'
+                        ? 'Event cancelled'
+                        : 'No external booking link required. Attendee check-in is handled at the venue.'}
+                    </Text>
+                  </View>
+                </View>
+              </LiquidGlassCard>
+            )}
 
             {/* Horizontal Scrollable Section Tabs Track (Frosted Glass Dock Capsule) */}
             <LiquidGlassCard
@@ -809,7 +876,7 @@ export default function EventDetailsScreen() {
         title={event?.name || 'Event Image'}
         dark={dark}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1055,7 +1122,7 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
@@ -1069,9 +1136,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
+    flexShrink: 0,
   },
   infoCopy: {
     flex: 1,
+    minWidth: 0,
   },
   infoLabel: {
     fontSize: 10,
@@ -1258,6 +1328,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1266,6 +1337,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     overflow: 'hidden',
     ...shadows.glass,
+    elevation: 10,
   },
   dockPriceRow: {
     flexDirection: 'row',

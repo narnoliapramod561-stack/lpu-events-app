@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Dimensions, Image, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect as SvgRect, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 
@@ -24,7 +24,10 @@ export interface CampusBackgroundProps {
  *    ensures high contrast and zero text distraction.
  */
 export function CampusBackground({ dark = false, blurred = false, blurIntensity }: CampusBackgroundProps) {
-  const { width, height } = useWindowDimensions();
+  const windowDims = useWindowDimensions();
+  const screenDims = Dimensions.get('screen');
+  const width = windowDims.width;
+  const height = Math.max(windowDims.height, screenDims.height);
 
   // Subtle overscale padding to prevent edge feathering when blurred
   const bleed = blurred ? 28 : 0;

@@ -29,6 +29,7 @@ import {
   formatDisplayDate,
   formatEventDateRange,
   formatEventTime,
+  isPaidEvent,
   localDate,
   matchesScheduleFilter,
   normalizeCategories,
@@ -678,15 +679,34 @@ function EventHubComponent({
 
   const filteredEvents = useMemo(() => {
     const source = trending ? trendingEvents : events;
-    const scoped = source.filter(
-      (evt) =>
-        (pricing === 'ALL' || trending || evt.pricing_type === pricing) &&
-        matchesScheduleFilter(evt, timeline, selectedDate || null),
-    );
+    const scoped = source.filter((evt) => {
+      // 1. Pricing Filter (FREE vs PAID matching website semantics)
+      if (!trending && pricing === 'PAID') {
+        if (!isPaidEvent(evt)) return false;
+      } else if (!trending && pricing === 'FREE') {
+        if (isPaidEvent(evt)) return false;
+      }
+
+      // 2. Schedule Filter
+      if (!matchesScheduleFilter(evt, timeline, selectedDate || null)) {
+        return false;
+      }
+
+      // 3. Category / Subcategory Filter (in-memory fast-filter)
+      if (category !== 'all' && evt.category_id && evt.category_id !== category) {
+        return false;
+      }
+      if (subcategory && evt.subcategory_id && evt.subcategory_id !== subcategory) {
+        return false;
+      }
+
+      return true;
+    });
+
     return debouncedQuery.trim().length >= 2 && !trending
       ? rankEventNames(scoped, debouncedQuery)
       : sortUpcoming(scoped);
-  }, [events, trendingEvents, trending, pricing, timeline, selectedDate, debouncedQuery]);
+  }, [events, trendingEvents, trending, pricing, timeline, selectedDate, category, subcategory, debouncedQuery]);
 
   const renderEvent = useCallback(
     ({ item }: { item: EventFeedItem }) => (
@@ -722,6 +742,10 @@ function EventHubComponent({
   const leaveTrending = (nextPricing: PricingFilter) => {
     if (!trending) {
       setPricing(nextPricing);
+      if (nextPricing === 'ALL' && category === 'all' && !subcategory && timeline === 'all' && !selectedDate) {
+        const valid = (initialEvents || []).filter((evt) => evt.status !== 'CANCELLED' && !evt.deleted_at);
+        setEvents(sortUpcoming(valid));
+      }
       return;
     }
     setTrending(false);
@@ -748,6 +772,8 @@ function EventHubComponent({
     setTimeline('all');
     setSelectedDate('');
     setPricing('ALL');
+    const valid = (initialEvents || []).filter((evt) => evt.status !== 'CANCELLED' && !evt.deleted_at);
+    setEvents(sortUpcoming(valid));
   };
 
   const sectionTitle =

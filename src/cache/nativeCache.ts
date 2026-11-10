@@ -84,6 +84,34 @@ export class NativeCache {
     }
   }
 
+  async getRevision(key: string): Promise<string | undefined> {
+    const entry = this.memory.get(key);
+    if (entry?.revision) return entry.revision;
+    try {
+      const raw = await AsyncStorage.getItem(`${KEY_PREFIX}${key}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as StoredEntry<unknown>;
+        return parsed.revision;
+      }
+    } catch {
+      return undefined;
+    }
+    return undefined;
+  }
+
+  async clear(): Promise<void> {
+    this.memory.clear();
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const cacheKeys = keys.filter((k) => k.startsWith(KEY_PREFIX));
+      if (cacheKeys.length > 0) {
+        await AsyncStorage.multiRemove(cacheKeys);
+      }
+    } catch {
+      // Best-effort cache wipe
+    }
+  }
+
   clearMemory(): void {
     this.memory.clear();
   }
