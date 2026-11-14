@@ -139,7 +139,10 @@ export const eventMatchesTimeline = (
 ): boolean => matchesScheduleFilter(event, timeline, date || null, now);
 
 export const sortUpcoming = (events: EventFeedItem[]): EventFeedItem[] =>
-  [...events].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+  [...events].sort((a, b) => {
+    const timeDelta = new Date(a.start_at).getTime() - new Date(b.start_at).getTime();
+    return timeDelta || a.id.localeCompare(b.id);
+  });
 
 export const formatEventDateRange = (startValue: string, endValue?: string | null): string => {
   const start = new Date(startValue);

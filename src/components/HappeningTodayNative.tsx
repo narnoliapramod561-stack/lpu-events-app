@@ -17,7 +17,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect as SvgRect, Stop } from 'react-native-svg';
 import type { EventFeedItem } from '../api/types';
-import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
+import { colors, glass, radii, spacing, typography } from '../design/tokens';
 import { eventImageSource } from '../features/homepageModels';
 import { formatEventTime as formatTime, formatEventTimeRange } from '../features/eventHub';
 import { NativeIcon } from './NativeIcon';

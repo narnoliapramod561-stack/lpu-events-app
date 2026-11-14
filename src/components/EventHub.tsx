@@ -2,7 +2,6 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import {
   Animated,
   FlatList,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -23,12 +22,9 @@ import { PublicApiClient } from '../api/publicApi';
 import { colors, glass, radii, shadows, spacing, typography } from '../design/tokens';
 import { BlurView } from 'expo-blur';
 import { LpuGlassCard } from './LpuGlassCard';
-import { eventImageSource } from '../features/homepageModels';
-import { GlassSheen, SpecularTopRim } from './ui/NativeGlass';
+import { SpecularTopRim } from './ui/NativeGlass';
 import {
   formatDisplayDate,
-  formatEventDateRange,
-  formatEventTime,
   isPaidEvent,
   localDate,
   matchesScheduleFilter,
@@ -42,6 +38,7 @@ import { NativeIcon, type IconName } from './NativeIcon';
 
 const api = new PublicApiClient();
 const PAGE_SIZE = 9;
+const LOAD_MORE_INCREMENT = 6;
 
 const timelineOptions: [TimelineFilter, string][] = [
   ['all', 'All'],
@@ -506,6 +503,7 @@ function EventHubComponent({
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(initialEvents.length >= PAGE_SIZE);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [trending, setTrending] = useState(false);
   const previousFilters = useRef<{
     timeline: TimelineFilter;
@@ -516,29 +514,36 @@ function EventHubComponent({
   const sectionOffset = useRef(0);
   const requestId = useRef(0);
 
-  // Synchronize initialEvents prop changes (updates on homepage pull-to-refresh)
-  const [prevInitialEvents, setPrevInitialEvents] = useState(initialEvents);
-  if (initialEvents !== prevInitialEvents) {
-    setPrevInitialEvents(initialEvents);
-    const valid = (initialEvents || []).filter((evt) => evt.status !== 'CANCELLED' && !evt.deleted_at);
-    setEvents(sortUpcoming(valid));
-    setHasMore(valid.length >= PAGE_SIZE);
-  }
+  // Synchronize initialEvents prop updates (e.g. homepage pull-to-refresh) via effect & ref guard
+  const prevInitialEventsRef = useRef(initialEvents);
+  useEffect(() => {
+    if (initialEvents !== prevInitialEventsRef.current) {
+      prevInitialEventsRef.current = initialEvents;
+      const valid = (initialEvents || []).filter((evt) => evt.status !== 'CANCELLED' && !evt.deleted_at);
+      setEvents(sortUpcoming(valid));
+      setHasMore(valid.length >= PAGE_SIZE);
+      setVisibleCount(PAGE_SIZE);
+    }
+  }, [initialEvents]);
 
-  // Synchronize forcedTimeline prop changes
-  const [prevForcedTimeline, setPrevForcedTimeline] = useState(forcedTimeline);
-  if (forcedTimeline && forcedTimeline !== prevForcedTimeline) {
-    setPrevForcedTimeline(forcedTimeline);
-    setTimeline(forcedTimeline);
-    setSelectedDate('');
-  }
+  // Synchronize forcedTimeline prop changes via effect
+  const prevForcedTimelineRef = useRef(forcedTimeline);
+  useEffect(() => {
+    if (forcedTimeline && forcedTimeline !== prevForcedTimelineRef.current) {
+      prevForcedTimelineRef.current = forcedTimeline;
+      setTimeline(forcedTimeline);
+      setSelectedDate('');
+    }
+  }, [forcedTimeline]);
 
-  // Synchronize initialQuery prop changes
-  const [prevInitialQuery, setPrevInitialQuery] = useState(initialQuery);
-  if (initialQuery !== undefined && initialQuery !== prevInitialQuery) {
-    setPrevInitialQuery(initialQuery);
-    setQuery(initialQuery);
-  }
+  // Synchronize initialQuery prop changes via effect
+  const prevInitialQueryRef = useRef(initialQuery);
+  useEffect(() => {
+    if (initialQuery !== undefined && initialQuery !== prevInitialQueryRef.current) {
+      prevInitialQueryRef.current = initialQuery;
+      setQuery(initialQuery);
+    }
+  }, [initialQuery]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 250);
@@ -565,24 +570,24 @@ function EventHubComponent({
       if (append) setLoadingMore(true);
       else setLoading(true);
       setErrorMessage(null);
+      const isSearchMode = search.trim().length >= 2;
       const result =
-        search.trim().length >= 2
+        isSearchMode
           ? await api.searchEvents(search, {
               ...filterParams,
               limit: PAGE_SIZE,
               offset,
-              event_name_only: true,
             })
           : await api.getEventFeed({ ...filterParams, limit: PAGE_SIZE, offset });
       if (id !== requestId.current) return;
       if (result.data) {
-        const incoming = sortUpcoming(
-          result.data.filter((evt) => evt.status !== 'CANCELLED' && !evt.deleted_at),
-        );
+        const filtered = result.data.filter((evt) => evt.status !== 'CANCELLED' && !evt.deleted_at);
+        const incoming = isSearchMode ? filtered : sortUpcoming(filtered);
         setEvents((current) => {
           if (!append) return incoming;
           const seen = new Set(current.map((evt) => evt.id));
-          return sortUpcoming([...current, ...incoming.filter((evt) => !seen.has(evt.id))]);
+          const combined = [...current, ...incoming.filter((evt) => !seen.has(evt.id))];
+          return isSearchMode ? combined : sortUpcoming(combined);
         });
         setHasMore(result.data.length >= PAGE_SIZE);
       } else {
@@ -593,19 +598,6 @@ function EventHubComponent({
     },
     [debouncedQuery, filterParams],
   );
-
-  // If homepage was refreshed while user had filters active, re-query the filtered feed
-  useEffect(() => {
-    if (category !== 'all' || subcategory || pricing !== 'ALL' || selectedDate || debouncedQuery.trim().length >= 2) {
-      void load(0, false);
-    }
-  }, [initialEvents, load]);
-
-  useEffect(() => {
-    if (!trending) {
-      void load(0, false);
-    }
-  }, [load, trending]);
 
   // In-memory zero-database-stress taxonomy search matching student website
   const cleanCategoryQuery = categoryQuery.trim().toLowerCase();
@@ -707,6 +699,15 @@ function EventHubComponent({
       ? rankEventNames(scoped, debouncedQuery)
       : sortUpcoming(scoped);
   }, [events, trendingEvents, trending, pricing, timeline, selectedDate, category, subcategory, debouncedQuery]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [timeline, selectedDate, pricing, category, subcategory, debouncedQuery, trending]);
+
+  const visibleEvents = useMemo(
+    () => filteredEvents.slice(0, visibleCount),
+    [filteredEvents, visibleCount],
+  );
 
   const renderEvent = useCallback(
     ({ item }: { item: EventFeedItem }) => (
@@ -1382,7 +1383,7 @@ function EventHubComponent({
 
       {/* Event Cards FlatList */}
       <FlatList
-        data={filteredEvents}
+        data={visibleEvents}
         scrollEnabled={false}
         keyExtractor={(item) => item.id}
         renderItem={renderEvent}
@@ -1393,10 +1394,10 @@ function EventHubComponent({
       />
 
       {/* View More Events Button */}
-      {hasMore && !trending && !loading && filteredEvents.length ? (
+      {visibleEvents.length < filteredEvents.length && !trending && !loading ? (
         <Pressable
           style={styles.moreButton}
-          onPress={() => void load(events.length, true)}
+          onPress={() => setVisibleCount((count) => count + LOAD_MORE_INCREMENT)}
           disabled={loadingMore}
         >
           <Text style={styles.moreText}>{loadingMore ? 'Loading…' : 'View More Events'}</Text>

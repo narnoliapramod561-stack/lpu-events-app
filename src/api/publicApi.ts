@@ -15,6 +15,30 @@ import type {
 export const PUBLIC_API_BASE_URL = 'https://lpuevents.live/api/public';
 export const PUBLIC_CONTENT_BASE_URL = 'https://images.lpuevents.live/public-content';
 
+export const catalogueEventToFeedItem = (event: any): EventFeedItem => ({
+  id: event.id,
+  name: event.name,
+  description: event.description || '',
+  start_at: event.start_at,
+  end_at: event.end_at,
+  venue_name: event.venue_name || 'LPU Campus',
+  registration_mode: event.registration_mode || 'NONE',
+  pricing_type: event.pricing_type || 'FREE',
+  price_amount: 0,
+  external_registration_url: event.external_registration_url || null,
+  registration_format: event.registration_format || null,
+  banner_media_id: null,
+  media_assets: event.poster_url ? { id: event.id, object_key: event.poster_url } : null,
+  status: 'PUBLISHED',
+  deleted_at: null,
+  organizations: event.organization_name ? { name: event.organization_name } : null,
+  category_id: event.category_id || null,
+  subcategory_id: event.subcategory_id || null,
+  categories: event.category_name ? { name: event.category_name } : null,
+  subcategories: event.subcategory_name ? { name: event.subcategory_name } : null,
+  is_trending: event.is_trending,
+});
+
 export interface EventFeedFilters {
   category_id?: string;
   subcategory_id?: string;

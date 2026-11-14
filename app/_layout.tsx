@@ -6,6 +6,19 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { colors } from '../src/design/tokens';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
+import { NativeErrorBoundary } from '../src/components/NativeErrorBoundary';
+import { captureMobileException } from '../src/telemetry/mobileTelemetry';
+
+// Global uncaught JavaScript exception handler for React Native thread
+if (typeof (global as any).ErrorUtils !== 'undefined') {
+  const originalHandler = (global as any).ErrorUtils.getGlobalHandler?.();
+  (global as any).ErrorUtils.setGlobalHandler?.((error: any, isFatal?: boolean) => {
+    captureMobileException(error, { isFatal, source: 'ErrorUtils.globalHandler' });
+    if (originalHandler) {
+      originalHandler(error, isFatal);
+    }
+  });
+}
 
 const StatusBar = ExpoStatusBar as React.ComponentType<
   React.ComponentProps<typeof ExpoStatusBar> & {
@@ -49,10 +62,12 @@ export default function RootLayout() {
   });
 
   return (
-    <ThemeProvider>
-      <SafeAreaProvider>
-        <Navigation />
-      </SafeAreaProvider>
-    </ThemeProvider>
+    <NativeErrorBoundary>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <Navigation />
+        </SafeAreaProvider>
+      </ThemeProvider>
+    </NativeErrorBoundary>
   );
 }

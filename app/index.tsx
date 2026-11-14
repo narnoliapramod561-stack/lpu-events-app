@@ -21,7 +21,7 @@ import { NativeFooter } from '../src/components/NativeFooter';
 import { MaintenanceView } from '../src/components/MaintenanceView';
 import { SiteNoticeBanner } from '../src/components/SiteNoticeBanner';
 import { colors, glass, radii, spacing } from '../src/design/tokens';
-import { PublicApiClient } from '../src/api/publicApi';
+import { PublicApiClient, catalogueEventToFeedItem } from '../src/api/publicApi';
 import type { EventFeedItem, HomepageBundle } from '../src/api/types';
 import {
   normalizeCarouselItems,
@@ -84,7 +84,22 @@ export default function HomeScreen() {
     setErrorMessage(null);
     setErrorCode(null);
     try {
-      const result = await api.getHomepage(forceRefresh);
+      const [homepageSnapshot, catalogueSnapshot] = await Promise.all([
+        api.getHomepageSnapshot(),
+        api.getEventsCatalogueSnapshot(),
+      ]);
+      const result =
+        homepageSnapshot.data &&
+        catalogueSnapshot.data &&
+        homepageSnapshot.data.revision === catalogueSnapshot.data.revision
+          ? {
+              ...homepageSnapshot,
+              data: {
+                ...homepageSnapshot.data,
+                events: catalogueSnapshot.data.events.map(catalogueEventToFeedItem),
+              },
+            }
+          : await api.getHomepage(forceRefresh);
       if (result.data) {
         setBundle(result.data);
         setLoading(false);

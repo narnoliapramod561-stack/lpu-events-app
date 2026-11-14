@@ -24,6 +24,10 @@ export interface EventFeedItem {
   subcategories?: { name: string; key?: string } | null;
   is_trending?: boolean;
   trending_sort_order?: number;
+  search_tokens?: string[];
+  search_index?: string;
+  start_epoch?: number;
+  end_epoch?: number;
 }
 
 export interface CategoryFeedItem {

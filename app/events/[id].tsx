@@ -3,7 +3,6 @@ import {
   Dimensions,
   Image,
   LayoutAnimation,
-  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -15,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PublicApiClient } from '../../src/api/publicApi';
 import type { EventDetails } from '../../src/api/types';
 import { eventImageSource } from '../../src/features/homepageModels';
@@ -118,9 +117,16 @@ export default function EventDetailsScreen() {
   const contentPagerRef = useRef<React.ElementRef<typeof ScrollView>>(null);
   const tabsScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
   const [imageFailed, setImageFailed] = useState(false);
-  const [imageModalVisible, setImageModalVisible] = useState(false);
-  const [bookingModalVisible, setBookingModalVisible] = useState(false);
-  const [shareModalVisible, setShareModalVisible] = useState(false);
+
+  // Mutually-exclusive modal state machine preventing overlay collision
+  type ActiveModal = 'image' | 'booking' | 'share' | null;
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const imageModalVisible = activeModal === 'image';
+  const bookingModalVisible = activeModal === 'booking';
+  const shareModalVisible = activeModal === 'share';
+  const setImageModalVisible = useCallback((v: boolean) => setActiveModal(v ? 'image' : null), []);
+  const setBookingModalVisible = useCallback((v: boolean) => setActiveModal(v ? 'booking' : null), []);
+  const setShareModalVisible = useCallback((v: boolean) => setActiveModal(v ? 'share' : null), []);
 
   // Synchronize internal state when rawId / initialEvent changes
   useEffect(() => {
@@ -215,7 +221,7 @@ export default function EventDetailsScreen() {
         contentPagerRef.current?.scrollTo({ x: idx * panelWidth, animated: false });
       }
     }
-  }, [sections]);
+  }, [sections, activeSection, activeIndex, panelWidth]);
 
   // Dynamic layout measurements for ultra-smooth centering & fluid gesture tracking
   const tabLayoutsRef = useRef<{ [key: number]: { x: number; width: number } }>({});

@@ -101,12 +101,22 @@ export const LpuGlassCard = memo(function LpuGlassCard({
       {/* TIER 2: Inner Clipping Shell — Strictly handles content clipping & rounded corners */}
       <View style={styles.innerClippedContainer}>
         {/* Hardware-Accelerated Frosted Glass Layer */}
-        <BlurView
-          pointerEvents="none"
-          intensity={Platform.OS === 'android' ? 35 : 55}
-          tint={dark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        />
+        {Platform.OS === 'android' ? (
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: dark ? 'rgba(24, 24, 30, 0.88)' : 'rgba(255, 255, 255, 0.88)' },
+            ]}
+          />
+        ) : (
+          <BlurView
+            pointerEvents="none"
+            intensity={55}
+            tint={dark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
 
         {/* 16:9 Banner Media Stage */}
         <View style={styles.bannerStage}>

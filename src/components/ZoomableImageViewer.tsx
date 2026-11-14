@@ -205,11 +205,14 @@ export function ZoomableImageViewer({
     >
       <View style={styles.backdrop}>
         {/* Hardware Ambient Blur Backdrop */}
-        <BlurView
-          intensity={Platform.OS === 'android' ? 60 : 85}
-          tint="dark"
-          style={StyleSheet.absoluteFill}
-        />
+        {Platform.OS === 'android' ? (
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(4, 4, 7, 0.96)' }]}
+          />
+        ) : (
+          <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFill} />
+        )}
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={() => {

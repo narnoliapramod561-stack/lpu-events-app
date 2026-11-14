@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Linking,
   Modal,
+  Platform,
   Pressable,
   Share,
   StyleSheet,
@@ -75,12 +76,22 @@ export function ShareModal({ visible, onClose, event, dark }: ShareModalProps) {
           onPress={(e) => e.stopPropagation()}
         >
           {/* Hardware Glass Blur Backdrop */}
-          <BlurView
-            pointerEvents="none"
-            intensity={dark ? 75 : 90}
-            tint={dark ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFill}
-          />
+          {Platform.OS === 'android' ? (
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: dark ? 'rgba(24, 24, 30, 0.94)' : 'rgba(255, 255, 255, 0.94)' },
+              ]}
+            />
+          ) : (
+            <BlurView
+              pointerEvents="none"
+              intensity={dark ? 75 : 90}
+              tint={dark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
 
           {/* Translucent Frosted Tint Overlay */}
           <View
